@@ -23,7 +23,7 @@ public class TectonicPlate
     public int plateType;
     private static List<TectonicPlate> AllPlates = new List<TectonicPlate>();
     private static List<GlobeTile> AllPlateTiles = new List<GlobeTile>();
-    private GlobeTile seed;
+    public GlobeTile seed;
     public List<GlobeTile> plateTiles = new List<GlobeTile>();
     public List<GlobeTile> perimeterTiles = new List<GlobeTile>();
     public List<GlobeTile> perimeterTileNeighbors = new List<GlobeTile>();
@@ -36,8 +36,8 @@ public class TectonicPlate
     private float plateRotationScalar = Random.value + 0.1f;
     private Color plateColor = new Color(Random.value, Random.value, Random.value);
 
-    private float elevation;
-    private float moisture = Random.value * 100;
+    public float elevation;
+    public float moisture = Random.value * 100;
 
     public TectonicPlate(GlobeTile seed, int smoothness, int oceanicRate)
     {
@@ -63,19 +63,21 @@ public class TectonicPlate
         {
             possibleElevation = this.plateType == CONTINENTAL ? Random.value : (Random.value) * -1;
         }
+        this.elevation = possibleElevation;
 
         TotalTectonicPlateCount++;
         AllPlates.Add(this);
         AllPlateTiles.Add(seed);
         this.seed = seed;
+        this.seed.tilesAwayFromPlateSeed = 0;
         this.plateRotationAxis = this.seed.delaunayPoint.normalized;
         this.seed.motion = Vector3.Cross(this.seed.delaunayPoint, this.planetaryRotationAxis).normalized;
         this.seed.motion *= planetaryRotationScalar;
 
-        for (int i = 0; i < this.seed.edges.Count; i++)
-        {
-            this.seed.edges[i].motion = this.seed.motion;
-        }
+        //for (int i = 0; i < this.seed.edges.Count; i++)
+        //{
+        //    this.seed.edges[i].motion = this.seed.motion;
+        //}
 
         this.plateTiles.Add(seed);
         this.seed.tectonicPlate = this;
@@ -88,19 +90,19 @@ public class TectonicPlate
 
             if (latitudeEstimate < (halfGlobeTileCount / 5))
             {
-                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.GrasslandMaterial;
+                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
             } else if (latitudeEstimate < (halfGlobeTileCount / 5) * 2)
             {
-                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.PlainsMaterial;
+                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
             } else if (latitudeEstimate < (halfGlobeTileCount / 5) * 3)
             {
                 this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
             } else if (latitudeEstimate < (halfGlobeTileCount / 5) * 4)
             {
-                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.TundraMaterial;
+                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
             } else if (latitudeEstimate < (halfGlobeTileCount / 5) * 5)
             {
-                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.SnowMaterial;
+                this.seed.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
             }
         } else
         {
@@ -141,7 +143,7 @@ public class TectonicPlate
     {
         if (possibleNeighbors.Count == 0)
         {
-            // Determine perimeter tiles and perimeter neighbor tiles of the tectonic plate
+            // Determine perimeter tiles and perimeter neighbor tiles of this tectonic plate
             for (int i = 0; i < this.plateTiles.Count; i++)
             {
                 GlobeTile currentPlateTile = this.plateTiles[i];
@@ -152,6 +154,7 @@ public class TectonicPlate
                     {
                         if (!this.perimeterTiles.Any(tile => tile.delaunayPoint == currentPlateTile.delaunayPoint))
                         {
+                            currentPlateTile.tilesAwayFromPlatePerimeter = 0;
                             this.perimeterTiles.Add(currentPlateTile);
                         }
                         if (!this.perimeterTileNeighbors.Any(tile => tile.delaunayPoint == currentPlateTileNeighbor.delaunayPoint))
@@ -162,22 +165,8 @@ public class TectonicPlate
                 }
             }
 
-            // Determine the perimeter edges of the tectonic plate method 1
-            //for (int i = 0; i < this.perimeterTiles.Count; i++)
-            //{
-            //    GlobeTile currentPerimterTile = this.perimeterTiles[i];
-            //    for (int j = 0; j < this.perimeterTileNeighbors.Count; j++)
-            //    {
-            //        GlobeTile currentPerimterTileNeighbor = this.perimeterTileNeighbors[i];
-            //        List<GlobeTileEdge> possibleMatchingEdges = currentPerimterTileNeighbor.edges.Intersect(currentPerimterTile.edges).ToList();
-            //        if (possibleMatchingEdges.Count == 1)
-            //        {
-            //            this.perimeterEdges.Add(possibleMatchingEdges[0]);
-            //        }
-            //    }
-            //}
 
-            // Determine the perimeter edges of the tectonic plate method 2
+            // Determine the perimeter edges of this tectonic plate
             List<GlobeTileEdge> allPerimeterTileEdges = new List<GlobeTileEdge>();
             List<GlobeTileEdge> allPerimeterTileNeighborEdges = new List<GlobeTileEdge>();
             for (int i = 0; i < this.perimeterTiles.Count; i++)
@@ -196,8 +185,11 @@ public class TectonicPlate
                     allPerimeterTileNeighborEdges.Add(currentPerimeterTileNeighbor.edges[j]);
                 }
             }
-
             this.perimeterEdges = allPerimeterTileEdges.Intersect(allPerimeterTileNeighborEdges).ToList();
+
+            // Determine the closest distance to a perimiter tile for each tile in this tectonic plate
+            // TODO: FIX FUNCTION
+            //GetNumberOfTilesAwayFromPerimeter(this.plateTiles[0], new List<GlobeTile>(), 0);
 
             return false;
         }
@@ -306,16 +298,17 @@ public class TectonicPlate
         {
             int possibleNeighborIndex = Random.Range(0, possibleNeighbors.Count);
             GlobeTile nextTile = possibleNeighbors[Random.Range(0, possibleNeighbors.Count)];
+
             nextTile.motion = Vector3.Cross(nextTile.delaunayPoint, this.planetaryRotationAxis).normalized;
             nextTile.motion *= planetaryRotationScalar;
 
             Vector3 tileRotationalMotion = Vector3.Cross(this.seed.delaunayPoint, (this.seed.delaunayPoint - nextTile.delaunayPoint)) * plateRotationScalar;
             nextTile.motion += tileRotationalMotion;
 
-            for (int j = 0; j < nextTile.edges.Count; j++)
-            {
-                nextTile.edges[j].motion = nextTile.motion;
-            }
+            //for (int j = 0; j < nextTile.edges.Count; j++)
+            //{
+            //    nextTile.edges[j].motion = nextTile.motion;
+            //}
 
             nextTile.tectonicPlate = this;
             possibleNeighbors.RemoveAt(possibleNeighborIndex);
@@ -323,6 +316,12 @@ public class TectonicPlate
             AllPlateTiles.Add(nextTile);
             nextTile.terrain.GetComponent<MeshRenderer>().material = this.seed.terrain.GetComponent<MeshRenderer>().material;
             //nextTile.terrain.GetComponent<MeshRenderer>().material.color = plateColor;
+
+            List<GlobeTile> nextTilePlateNeighbors = nextTile.neighborTiles.FindAll(tile => tile.tectonicPlate == nextTile.tectonicPlate);
+            nextTilePlateNeighbors.RemoveAll(tile => tile.tilesAwayFromPlateSeed < 0);
+            nextTilePlateNeighbors.Sort((a, b) => a.tilesAwayFromPlateSeed.CompareTo(b.tilesAwayFromPlateSeed));
+            int tilesAwayFromPlateSeed = nextTilePlateNeighbors[0].tilesAwayFromPlateSeed + 1;
+            nextTile.tilesAwayFromPlateSeed = tilesAwayFromPlateSeed;
         }
         possibleNeighbors.Clear();
 
@@ -354,5 +353,58 @@ public class TectonicPlate
 
         return true;
 
+    }
+
+
+    ///<summary>
+    ///Returns the adjacent perimeter tile in index 0 and corresponding neighbor tile in index 1 given a tectonic plate edge. Returns empty list if no tiles were found for given edge.
+    ///</summary>
+    public List<GlobeTile> FindAdjacentPerimeterAndNeighborTiles(GlobeTileEdge sharedEdge)
+    {
+        GlobeTile matchingPerimeterTile = this.perimeterTiles.Find(tile => tile.edges.Contains(sharedEdge));
+        GlobeTile matchingPerimeterTileNeighbor = this.perimeterTileNeighbors.Find(tile => tile.edges.Contains(sharedEdge));
+
+        List<GlobeTile> matchingTilePair = new List<GlobeTile>();
+        if (matchingPerimeterTile != null)
+        {
+            matchingTilePair.Add(matchingPerimeterTile);
+        }
+        if (matchingPerimeterTileNeighbor != null)
+        {
+            matchingTilePair.Add(matchingPerimeterTileNeighbor);
+        }
+        return matchingTilePair;
+    }
+
+    ///<summary>
+    ///Recursively calculates the distance in tiles of the closest perimeter tile.
+    ///Returns the number of tiles the provided plateTile is away from the closest perimeter tile.
+    ///This should only be called once the tectonic plates are all finished generating.
+    ///<br></br>
+    ///NOT WORKING YET - TODO: FIX
+    ///</summary>
+    private void GetNumberOfTilesAwayFromPerimeter(GlobeTile plateTile, List<GlobeTile> visitedTiles, int iterations)
+    {
+        if (this.perimeterTiles.Any(tile => tile.id == plateTile.id))
+        {
+            plateTile.tilesAwayFromPlatePerimeter = iterations;
+            return;
+        }
+        if (visitedTiles.Count == this.plateTiles.Count)
+        {
+            return;
+        }
+        iterations++;
+        visitedTiles.Add(plateTile);
+        List<GlobeTile> nextPossiblePlateTileNeighbors = plateTile.neighborTiles.Except(visitedTiles).ToList();
+        nextPossiblePlateTileNeighbors = nextPossiblePlateTileNeighbors.Except(this.perimeterTileNeighbors).ToList();
+
+        for (int i = 0; i < nextPossiblePlateTileNeighbors.Count; i++)
+        {
+            GetNumberOfTilesAwayFromPerimeter(nextPossiblePlateTileNeighbors[i], visitedTiles, iterations);
+        }
+
+
+        return;
     }
 }

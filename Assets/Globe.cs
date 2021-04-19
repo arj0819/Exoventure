@@ -37,6 +37,7 @@ public class Globe : MonoBehaviour
     public static Material SnowMaterial;
     public static Material TundraMaterial;
     public static Material WaterMaterial;
+    public static Material EdgeMaterial;
 
 
     // Start is called before the first frame update
@@ -49,6 +50,7 @@ public class Globe : MonoBehaviour
         SnowMaterial = new Material(GameObject.Find("SnowMaterial").GetComponent<MeshRenderer>().material);
         TundraMaterial = new Material(GameObject.Find("TundraMaterial").GetComponent<MeshRenderer>().material);
         WaterMaterial = new Material(GameObject.Find("WaterMaterial").GetComponent<MeshRenderer>().material);
+        EdgeMaterial = new Material(GameObject.Find("EdgeMaterial").GetComponent<MeshRenderer>().material);
 
         // Initialize 
         tileGraphNodes = GenerateTileGraphNodes(numberOfTiles);
@@ -166,12 +168,16 @@ public class Globe : MonoBehaviour
                     commonVertices = currentGlobeTile.vertices.Intersect(neighboringTiles[j].vertices).ToList();
                 }
                 currentGlobeTile.neighborTiles.Add(neighboringTiles[j]);
+                GlobeTile currentNeighboringTile = neighboringTiles[j];
+                List<GlobeTile> adjacentTiles = new List<GlobeTile>();
+                adjacentTiles.Add(currentGlobeTile);
+                adjacentTiles.Add(currentNeighboringTile);
                 GlobeTileEdge potentialMatchingEdge = GlobeTileEdge.AllEdges.Find(edge => commonVertices.Contains(edge.vertex1) && commonVertices.Contains(edge.vertex2));
                 if (potentialMatchingEdge != null)
                 {
                     currentGlobeTile.edges.Add(potentialMatchingEdge);
                 } else {
-                    currentGlobeTile.edges.Add(new GlobeTileEdge(commonVertices[0], commonVertices[1]));
+                    currentGlobeTile.edges.Add(new GlobeTileEdge(commonVertices[0], commonVertices[1], adjacentTiles));
                 }
                 commonVertices.Clear();
             }
@@ -204,9 +210,9 @@ public class Globe : MonoBehaviour
         {
             for (int i = 0; i < tectonicPlates.Count; i++)
             {
-                if (!tectonicPlates[i].FindNextTiles())
+                if (!finishedPlateIndices.Contains(i))
                 {
-                    if (!finishedPlateIndices.Contains(i))
+                    if (!tectonicPlates[i].FindNextTiles())
                     {
                         finishedPlateIndices.Add(i);
                     }
@@ -214,37 +220,100 @@ public class Globe : MonoBehaviour
             }
         }
 
+        // Determine the stresses on each edge of each tectonic plate
+        for (int i = 0; i < tectonicPlates.Count; i++)
+        {
+            TectonicPlate currentTectonicPlate = tectonicPlates[i];
+            for (int j = 0; j < currentTectonicPlate.perimeterEdges.Count; j++)
+            {
+                GlobeTileEdge currentPerimeterEdge = currentTectonicPlate.perimeterEdges[j];
+                Vector3 relativeTileMotion = Vector3.zero;
+                Vector3 tectonicPressureVector = Vector3.zero;
+                Vector3 tectonicSheerVector = Vector3.zero;
 
-        // print each plate perimeter tile count
+                if (currentPerimeterEdge.adjacentTiles.Count == 2)
+                {
+                    relativeTileMotion = currentPerimeterEdge.adjacentTiles[0].motion - currentPerimeterEdge.adjacentTiles[1].motion;
+                    tectonicSheerVector = Vector3.Dot(relativeTileMotion, currentPerimeterEdge.edgeVector) * currentPerimeterEdge.edgeVector;
+                    tectonicPressureVector = tectonicSheerVector - relativeTileMotion;
+
+                    currentPerimeterEdge.tectonicSheer = tectonicSheerVector.magnitude;
+
+                    Vector3 tileDirectionVector1 = currentPerimeterEdge.adjacentTiles[1].delaunayPoint - currentPerimeterEdge.adjacentTiles[0].delaunayPoint;
+                    float collisionSeparationDeterminate1 = Vector3.Dot(tileDirectionVector1, currentPerimeterEdge.adjacentTiles[0].motion);
+                    Vector3 tileDirectionVector2 = currentPerimeterEdge.adjacentTiles[0].delaunayPoint - currentPerimeterEdge.adjacentTiles[1].delaunayPoint;
+                    float collisionSeparationDeterminate2 = Vector3.Dot(tileDirectionVector2, currentPerimeterEdge.adjacentTiles[1].motion);
+
+                    float collisionSeparationDeterminate = collisionSeparationDeterminate1 + collisionSeparationDeterminate2;
+
+                    currentPerimeterEdge.tectonicPressure = tectonicPressureVector.magnitude * Mathf.Sign(collisionSeparationDeterminate);
+                }
+            }
+            for (int j = 0; j < currentTectonicPlate.perimeterTiles.Count; j++)
+            {
+                GlobeTile currentPerimeterTile = currentTectonicPlate.perimeterTiles[j];
+                float currentPerimeterTileTotalTectonicPressure = 0f;
+                float currentPerimeterTileTotalTectonicSheer = 0f;
+                int totalPerimiterEdgeCount = 0;
+                for (int k = 0; k < currentPerimeterTile.edges.Count; k++)
+                {
+                    GlobeTileEdge currentPerimeterTileEdge = currentPerimeterTile.edges[k];
+                    GlobeTile adjacentPlateTile;
+                    int matchingPerimiterTileIndex = currentPerimeterTileEdge.adjacentTiles.IndexOf(currentPerimeterTile);
+                    if (matchingPerimiterTileIndex == 0)
+                    {
+                        adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[1];
+                    } else
+                    {
+                        adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[0];
+                    }
+                    if (currentTectonicPlate.perimeterEdges.Any(edge => edge.id == currentPerimeterTileEdge.id))
+                    {
+                        currentPerimeterTileTotalTectonicPressure += currentPerimeterTileEdge.tectonicPressure;
+                        currentPerimeterTileTotalTectonicSheer += currentPerimeterTileEdge.tectonicSheer;
+                        if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+                        {
+                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.5f;
+                        } else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+                        {
+                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 1;
+                        } else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+                        {
+                            currentPerimeterTileTotalTectonicPressure -= Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 1;
+                        } else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+                        {
+                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.5f;
+                        }
+                        totalPerimiterEdgeCount++;
+                    }
+                }
+                float averatePerimiterTileTectonicPressure = currentPerimeterTileTotalTectonicPressure / totalPerimiterEdgeCount;
+                float averatePerimiterTileTectonicSheer = currentPerimeterTileTotalTectonicSheer / totalPerimiterEdgeCount;
+                float elevationResult = averatePerimiterTileTectonicPressure + currentTectonicPlate.elevation;
+
+                if (elevationResult <= 0f)
+                {
+                    currentPerimeterTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterMaterial;
+                } else
+                {
+                    currentPerimeterTile.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
+                }
+            }
+        }
+
+        // Debugging Tectonic Plates
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
             //print(tectonicPlates[i].perimeterTiles.Count);
             //print(tectonicPlates[i].perimeterTileNeighbors.Count);
             //print(tectonicPlates[i].perimeterEdges.Count);
+            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = Globe.GrasslandMaterial;
+            for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
+            {
+                print(tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter);
+            }
         }
 
-        // print each plate perimeter tile count
-        //for (int i = 0; i < tectonicPlates.Count; i++)
-        //{
-        //    // Determine perimeter tiles of the tectonic plate
-        //    TectonicPlate currentPlate = tectonicPlates[i];
-        //    for (int j = 0; j < currentPlate.plateTiles.Count; j++)
-        //    {
-        //        GlobeTile currentPlateTile = currentPlate.plateTiles[j];
-        //        for (int k = 0; k < currentPlateTile.neighborTiles.Count; k++)
-        //        {
-        //            GlobeTile currentPlateTileNeighbor = currentPlateTile.neighborTiles[k];
-        //            if (currentPlateTileNeighbor.tectonicPlate == null || currentPlateTileNeighbor.tectonicPlate.id != currentPlate.id)
-        //            {
-        //                if (!currentPlate.perimeterTiles.Any(tile => tile.delaunayPoint == currentPlateTile.delaunayPoint))
-        //                {
-        //                    currentPlate.perimeterTiles.Add(currentPlateTile);
-        //                }
-        //            }
-        //        }
-        //    }
-        //    print(tectonicPlates[i].perimeterTiles.Count);
-        //}
 
         // Visualise tile motion vectors
         for (int i = 0; i < globeTiles.Count; i++)
@@ -287,7 +356,7 @@ public class Globe : MonoBehaviour
         }
         print(globeEdges.Count);
 
-        // print each plate perimeter tile count
+        // Visualize tectonic plate boundaries by their tectonic pressure
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
             TectonicPlate currentPlate = tectonicPlates[i];
@@ -295,14 +364,36 @@ public class Globe : MonoBehaviour
             {
                 GlobeTileEdge currentPlateTileEdge = currentPlate.perimeterEdges[j];
                 LineRenderer line = new GameObject().AddComponent<LineRenderer>();
-                line.material = Globe.DesertMaterial;
-                line.material.color = new Color(0f, 255f,0f);
+                line.material = Globe.EdgeMaterial;
+
+                if (currentPlateTileEdge.tectonicPressure <= -1f)
+                {
+                    line.material.color = new Color(0f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > -1f && currentPlateTileEdge.tectonicPressure <= -0.5f)
+                {
+                    line.material.color = new Color(1.5f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > -0.5f && currentPlateTileEdge.tectonicPressure <= 0.5f)
+                {
+                    line.material.color = new Color(255f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > 0.5f && currentPlateTileEdge.tectonicPressure <= 1f)
+                {
+                    line.material.color = new Color(255f, 1.5f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > 1f)
+                {
+                    line.material.color = new Color(255f, 0f, 0f);
+                }
+
+
                 line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
                 line.startWidth = 0.15f;
                 line.endWidth = 0.15f;
-                line.startColor = Color.black;
-                line.endColor = Color.black;
+                //line.startColor = Color.black;
+                //line.endColor = Color.black;
                 line.positionCount = 2;
 
                 Vector3 linePosition1 = currentPlateTileEdge.vertex1 * scale * 1.0006f;

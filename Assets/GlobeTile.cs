@@ -21,6 +21,8 @@ public class GlobeTile
     public Mesh mesh = new Mesh();
     public GameObject terrain = GameObject.CreatePrimitive(PrimitiveType.Quad);
     public TectonicPlate tectonicPlate;
+    public int tilesAwayFromPlateSeed = -1;
+    public int tilesAwayFromPlatePerimeter = -1;
     public Vector3 motion;
 
     public GlobeTile(Vector3 delaunayPoint, List<Vector3> vertices, float scale, float theta)
