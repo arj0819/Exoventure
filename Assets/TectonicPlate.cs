@@ -36,7 +36,7 @@ public class TectonicPlate
     private float plateRotationScalar = Random.value + 0.1f;
     private Color plateColor = new Color(Random.value, Random.value, Random.value);
 
-    public float elevation;
+    public float defaultElevation;
     public float moisture = Random.value * 100;
 
     public TectonicPlate(GlobeTile seed, int smoothness, int oceanicRate)
@@ -58,26 +58,19 @@ public class TectonicPlate
         }
 
         this.plateType = (Random.value * 100) > oceanicRate ? CONTINENTAL : OCEANIC;
-        float possibleElevation = this.plateType == CONTINENTAL ? Random.value : (Random.value) * -1;
-        while (possibleElevation == 0f)
-        {
-            possibleElevation = this.plateType == CONTINENTAL ? Random.value : (Random.value) * -1;
-        }
-        this.elevation = possibleElevation;
+        float possibleElevation = this.plateType == CONTINENTAL ? Random.Range(0.4f, 0.6f) : Random.Range(0.4f, 0.6f) * -1;
+        this.defaultElevation = possibleElevation;
 
         TotalTectonicPlateCount++;
         AllPlates.Add(this);
         AllPlateTiles.Add(seed);
         this.seed = seed;
         this.seed.tilesAwayFromPlateSeed = 0;
+        this.seed.elevation = this.defaultElevation;
         this.plateRotationAxis = this.seed.delaunayPoint.normalized;
         this.seed.motion = Vector3.Cross(this.seed.delaunayPoint, this.planetaryRotationAxis).normalized;
         this.seed.motion *= planetaryRotationScalar;
 
-        //for (int i = 0; i < this.seed.edges.Count; i++)
-        //{
-        //    this.seed.edges[i].motion = this.seed.motion;
-        //}
 
         this.plateTiles.Add(seed);
         this.seed.tectonicPlate = this;
@@ -188,8 +181,45 @@ public class TectonicPlate
             this.perimeterEdges = allPerimeterTileEdges.Intersect(allPerimeterTileNeighborEdges).ToList();
 
             // Determine the closest distance to a perimiter tile for each tile in this tectonic plate
-            // TODO: FIX FUNCTION
-            //GetNumberOfTilesAwayFromPerimeter(this.plateTiles[0], new List<GlobeTile>(), 0);
+            for (int i = 0; i < this.plateTiles.Count; i++)
+            {
+                Queue<GlobeTile> queuedTiles = new Queue<GlobeTile>();
+                List<GlobeTile> visitedTiles = new List<GlobeTile>();
+                int depth = 0;
+
+                queuedTiles.Enqueue(this.plateTiles[i]);
+
+                while (queuedTiles.Count > 0)
+                {
+                    int tilesInCurrentLevel = queuedTiles.Count;
+                    bool foundPerimeter = false;
+                    while (tilesInCurrentLevel-- > 0)
+                    {
+                        GlobeTile nextTileInLevel = queuedTiles.Dequeue();
+                        GlobeTile possibleClosestTectonicPerimiterTile = this.perimeterTiles.Find(tile => tile.id == nextTileInLevel.id);
+                        if (possibleClosestTectonicPerimiterTile != null)
+                        {
+                            plateTiles[i].closestTectonicPerimiterTile = possibleClosestTectonicPerimiterTile;
+                            foundPerimeter = true;
+                            break;
+                        }
+                        visitedTiles.Add(nextTileInLevel);
+                        List<GlobeTile> nextPossibleNeighbors = nextTileInLevel.neighborTiles.Except(visitedTiles).ToList();
+                        nextPossibleNeighbors = nextPossibleNeighbors.Except(this.perimeterTileNeighbors).ToList();
+                        GlobeTile.ShuffleTiles(nextPossibleNeighbors);
+                        for (int j = 0; j < nextPossibleNeighbors.Count; j++)
+                        {
+                            queuedTiles.Enqueue(nextPossibleNeighbors[j]);
+                        }
+                    }
+                    if (foundPerimeter)
+                    {
+                        break;
+                    }
+                    depth++;
+                }
+                this.plateTiles[i].tilesAwayFromPlatePerimeter = depth;
+            }
 
             return false;
         }
@@ -297,7 +327,8 @@ public class TectonicPlate
         for (int i = 0; i < amountOfNextTilesToAdd; i++)
         {
             int possibleNeighborIndex = Random.Range(0, possibleNeighbors.Count);
-            GlobeTile nextTile = possibleNeighbors[Random.Range(0, possibleNeighbors.Count)];
+            GlobeTile nextTile = possibleNeighbors[possibleNeighborIndex];
+            nextTile.elevation = this.defaultElevation;
 
             nextTile.motion = Vector3.Cross(nextTile.delaunayPoint, this.planetaryRotationAxis).normalized;
             nextTile.motion *= planetaryRotationScalar;
@@ -374,37 +405,5 @@ public class TectonicPlate
             matchingTilePair.Add(matchingPerimeterTileNeighbor);
         }
         return matchingTilePair;
-    }
-
-    ///<summary>
-    ///Recursively calculates the distance in tiles of the closest perimeter tile.
-    ///Returns the number of tiles the provided plateTile is away from the closest perimeter tile.
-    ///This should only be called once the tectonic plates are all finished generating.
-    ///<br></br>
-    ///NOT WORKING YET - TODO: FIX
-    ///</summary>
-    private void GetNumberOfTilesAwayFromPerimeter(GlobeTile plateTile, List<GlobeTile> visitedTiles, int iterations)
-    {
-        if (this.perimeterTiles.Any(tile => tile.id == plateTile.id))
-        {
-            plateTile.tilesAwayFromPlatePerimeter = iterations;
-            return;
-        }
-        if (visitedTiles.Count == this.plateTiles.Count)
-        {
-            return;
-        }
-        iterations++;
-        visitedTiles.Add(plateTile);
-        List<GlobeTile> nextPossiblePlateTileNeighbors = plateTile.neighborTiles.Except(visitedTiles).ToList();
-        nextPossiblePlateTileNeighbors = nextPossiblePlateTileNeighbors.Except(this.perimeterTileNeighbors).ToList();
-
-        for (int i = 0; i < nextPossiblePlateTileNeighbors.Count; i++)
-        {
-            GetNumberOfTilesAwayFromPerimeter(nextPossiblePlateTileNeighbors[i], visitedTiles, iterations);
-        }
-
-
-        return;
     }
 }

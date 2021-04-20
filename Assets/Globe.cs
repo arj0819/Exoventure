@@ -249,16 +249,20 @@ public class Globe : MonoBehaviour
                     currentPerimeterEdge.tectonicPressure = tectonicPressureVector.magnitude * Mathf.Sign(collisionSeparationDeterminate);
                 }
             }
+
+
+
+            // First pass on the perimeter tiles, just calculate average tectonic pressure and sheer on each perimeter tile
             for (int j = 0; j < currentTectonicPlate.perimeterTiles.Count; j++)
             {
                 GlobeTile currentPerimeterTile = currentTectonicPlate.perimeterTiles[j];
+                GlobeTile adjacentPlateTile;
                 float currentPerimeterTileTotalTectonicPressure = 0f;
                 float currentPerimeterTileTotalTectonicSheer = 0f;
                 int totalPerimiterEdgeCount = 0;
                 for (int k = 0; k < currentPerimeterTile.edges.Count; k++)
                 {
                     GlobeTileEdge currentPerimeterTileEdge = currentPerimeterTile.edges[k];
-                    GlobeTile adjacentPlateTile;
                     int matchingPerimiterTileIndex = currentPerimeterTileEdge.adjacentTiles.IndexOf(currentPerimeterTile);
                     if (matchingPerimiterTileIndex == 0)
                     {
@@ -271,46 +275,244 @@ public class Globe : MonoBehaviour
                     {
                         currentPerimeterTileTotalTectonicPressure += currentPerimeterTileEdge.tectonicPressure;
                         currentPerimeterTileTotalTectonicSheer += currentPerimeterTileEdge.tectonicSheer;
-                        if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
-                        {
-                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.5f;
-                        } else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
-                        {
-                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 1;
-                        } else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
-                        {
-                            currentPerimeterTileTotalTectonicPressure -= Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 1;
-                        } else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
-                        {
-                            currentPerimeterTileTotalTectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.5f;
-                        }
                         totalPerimiterEdgeCount++;
                     }
                 }
-                float averatePerimiterTileTectonicPressure = currentPerimeterTileTotalTectonicPressure / totalPerimiterEdgeCount;
-                float averatePerimiterTileTectonicSheer = currentPerimeterTileTotalTectonicSheer / totalPerimiterEdgeCount;
-                float elevationResult = averatePerimiterTileTectonicPressure + currentTectonicPlate.elevation;
+                // For each perimeter tile, the tectonic pressure and sheer are averaged among all the plate perimeter edges on that tile
+                float averagePerimeterTileTectonicPressure = currentPerimeterTileTotalTectonicPressure / totalPerimiterEdgeCount;
+                float averagePerimeterTileTectonicSheer = currentPerimeterTileTotalTectonicSheer / totalPerimiterEdgeCount;
+                currentPerimeterTile.tectonicPressure = averagePerimeterTileTectonicPressure;
+                currentPerimeterTile.tectonicSheer = averagePerimeterTileTectonicSheer;
 
-                if (elevationResult <= 0f)
+            }
+
+
+            // Second pass on the perimeter tiles, modify each perimeter tile's tectonic pressure and sheer based on what types of plates are interacting
+            //for (int j = 0; j < currentTectonicPlate.perimeterTiles.Count; j++)
+            //{
+            //    GlobeTile currentPerimeterTile = currentTectonicPlate.perimeterTiles[j];
+            //    GlobeTile adjacentPlateTile;
+            //    for (int k = 0; k < currentPerimeterTile.edges.Count; k++)
+            //    {
+            //        GlobeTileEdge currentPerimeterTileEdge = currentPerimeterTile.edges[k];
+            //        if (currentTectonicPlate.perimeterEdges.Any(edge => edge.id == currentPerimeterTileEdge.id))
+            //        {
+            //            int matchingPerimiterTileIndex = currentPerimeterTileEdge.adjacentTiles.IndexOf(currentPerimeterTile);
+            //            if (matchingPerimiterTileIndex == 0)
+            //            {
+            //                adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[1];
+            //            }
+            //            else
+            //            {
+            //                adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[0];
+            //            }
+
+            //            if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+            //            {
+            //                currentPerimeterTile.tectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.1f;
+            //            }
+            //            else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+            //            {
+            //                currentPerimeterTile.tectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.2f;
+            //            }
+            //            else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+            //            {
+            //                currentPerimeterTile.tectonicPressure -= Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.2f;
+            //            }
+            //            else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+            //            {
+            //                currentPerimeterTile.tectonicPressure += Mathf.Sign(currentPerimeterTileEdge.tectonicPressure) * 0.05f;
+            //            }
+            //        }
+            //    }
+            //}
+
+            // Get the Average Tectonic Pressure and Sheer between all the perimeter tiles on this plate
+            float totalPerimeterTectonicPressure = 0f;
+            float totalPerimeterTectonicSheer = 0f;
+            for (int j = 0; j < currentTectonicPlate.perimeterTiles.Count; j++)
+            {
+                totalPerimeterTectonicPressure += currentTectonicPlate.perimeterTiles[j].tectonicPressure;
+                totalPerimeterTectonicSheer += currentTectonicPlate.perimeterTiles[j].tectonicSheer;
+            }
+            float averagePerimeterTectonicPressure = totalPerimeterTectonicPressure / currentTectonicPlate.perimeterTiles.Count;
+            float averagePerimeterTectonicSheer = totalPerimeterTectonicSheer / currentTectonicPlate.perimeterTiles.Count;
+
+            // Interpolate the tectonic pressure and sheer of the non-perimeter tiles of the tectonic plate against the average pressure and sheer for the whole perimeter
+            for (int j = 0; j < currentTectonicPlate.plateTiles.Count; j++)
+            {
+                GlobeTile currentPlateTile = currentTectonicPlate.plateTiles[j];
+                if (currentTectonicPlate.perimeterTiles.Any(tile => tile.id == currentPlateTile.id)) 
+                {
+                    continue;
+                } 
+                else
+                {
+                    currentPlateTile.tectonicPressure = Mathf.Lerp(averagePerimeterTectonicPressure, currentPlateTile.closestTectonicPerimiterTile.tectonicPressure, 1f / currentPlateTile.tilesAwayFromPlatePerimeter);
+                    currentPlateTile.tectonicSheer = Mathf.Lerp(averagePerimeterTectonicSheer, currentPlateTile.closestTectonicPerimiterTile.tectonicSheer, 1f / currentPlateTile.tilesAwayFromPlatePerimeter);
+                }
+            }
+
+        }
+
+        // Normalize tectonic pressure and sheer so that pressure is in [-1, 1] and sheer is in [0, 1] across the globe
+        List<GlobeTile> tilesSortedByTectonicPressure = new List<GlobeTile>(globeTiles);
+        List<GlobeTile> tilesSortedByTectonicSheer = new List<GlobeTile>(globeTiles);
+        tilesSortedByTectonicPressure.Sort((a, b) => b.tectonicPressure.CompareTo(a.tectonicPressure));
+        tilesSortedByTectonicSheer.Sort((a, b) => b.tectonicSheer.CompareTo(a.tectonicSheer));
+        float greatestTectonicPressure = tilesSortedByTectonicPressure[0].tectonicPressure;
+        float greatestTectonicSheer = tilesSortedByTectonicSheer[0].tectonicSheer;
+        float leastTectonicPressure = tilesSortedByTectonicPressure[tilesSortedByTectonicPressure.Count - 1].tectonicPressure;
+        float leastTectonicSheer = tilesSortedByTectonicSheer[tilesSortedByTectonicSheer.Count - 1].tectonicSheer;
+        for (int i = 0; i < globeTiles.Count; i++)
+        {
+            GlobeTile currentPlateTile = globeTiles[i];
+            currentPlateTile.tectonicPressure = (2 * ((currentPlateTile.tectonicPressure - leastTectonicPressure) / (greatestTectonicPressure - leastTectonicPressure))) - 1;
+            currentPlateTile.tectonicSheer = (currentPlateTile.tectonicSheer - leastTectonicSheer) / (greatestTectonicSheer - leastTectonicSheer);
+        }
+
+        // Determine the elevations for the tiles of each tectonic plate
+        for (int i = 0; i < tectonicPlates.Count; i++)
+        {
+            // First we need to determine the elevation of each tile on the perimeter of the tectonic plate by looking at how it's interacting with adjacent plates
+            TectonicPlate currentTectonicPlate = tectonicPlates[i];
+            for (int j = 0; j < currentTectonicPlate.perimeterTiles.Count; j++)
+            {
+                GlobeTile currentPerimeterTile = currentTectonicPlate.perimeterTiles[j];
+                GlobeTile adjacentPlateTile;
+                for (int k = 0; k < currentPerimeterTile.edges.Count; k++)
+                {
+                    GlobeTileEdge currentPerimeterTileEdge = currentPerimeterTile.edges[k];
+                    if (currentTectonicPlate.perimeterEdges.Any(edge => edge.id == currentPerimeterTileEdge.id))
+                    {
+                        int matchingPerimiterTileIndex = currentPerimeterTileEdge.adjacentTiles.IndexOf(currentPerimeterTile);
+                        if (matchingPerimiterTileIndex == 0)
+                        {
+                            adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[1];
+                        }
+                        else
+                        {
+                            adjacentPlateTile = currentPerimeterTileEdge.adjacentTiles[0];
+                        }
+
+                        if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+                        {
+                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                        }
+                        else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+                        {
+                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                        }
+                        else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
+                        {
+                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                        }
+                        else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
+                        {
+                            float alterElevation = Random.value;
+                            if (alterElevation > 0.5f)
+                            {
+                                currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                            }
+                        }
+
+
+                        if (currentPerimeterTile.elevation > 1f)
+                        {
+                            currentPerimeterTile.elevation = 1f;
+                        }
+                        else if (currentPerimeterTile.elevation < -1f)
+                        {
+                            currentPerimeterTile.elevation = -1f;
+                        }
+                    }
+                }
+                if (currentPerimeterTile.elevation <= 0f)
                 {
                     currentPerimeterTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterMaterial;
-                } else
+                }
+                else
                 {
                     currentPerimeterTile.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
                 }
             }
+
+            // Interpolate the elevation of non-perimeter tiles of the tectonic plate
+            for (int j = 0; j < currentTectonicPlate.plateTiles.Count; j++)
+            {
+                GlobeTile currentPlateTile = currentTectonicPlate.plateTiles[j];
+                if (currentTectonicPlate.perimeterTiles.Any(tile => tile.id == currentPlateTile.id))
+                {
+                    continue;
+                }
+                else
+                {
+                    currentPlateTile.elevation = Mathf.Lerp(currentPlateTile.elevation, currentPlateTile.closestTectonicPerimiterTile.elevation, 1f / currentPlateTile.tilesAwayFromPlatePerimeter);
+                }
+                if (currentPlateTile.elevation <= 0f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterMaterial;
+                }
+                else
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
+                }
+            }
         }
+
+
+
+
+
+
 
         // Debugging Tectonic Plates
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
+            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = (tectonicPlates[i].plateType == TectonicPlate.CONTINENTAL ? Globe.GrasslandMaterial : Globe.SnowMaterial);
+            //print(tectonicPlates[i].plateTiles.Count);
             //print(tectonicPlates[i].perimeterTiles.Count);
             //print(tectonicPlates[i].perimeterTileNeighbors.Count);
             //print(tectonicPlates[i].perimeterEdges.Count);
             //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = Globe.GrasslandMaterial;
+            //tectonicPlates[i].plateTiles.Sort((a, b) => a.tilesAwayFromPlatePerimeter.CompareTo(b.tilesAwayFromPlatePerimeter));
             for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
             {
-                print(tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter);
+                //print(tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter);
+                //tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
+                //switch (tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter)
+                //{
+                //    case 0:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(0 / 8f, 0 / 8f, 0 / 8f);
+                //        break;
+                //    case 1:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(1 / 8f, 1 / 8f, 1 / 8f);
+                //        break;
+                //    case 2:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(2 / 8f, 2 / 8f, 2 / 8f);
+                //        break;
+                //    case 3:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(3 / 8f, 3 / 8f, 3 / 8f);
+                //        break;
+                //    case 4:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(4 / 8f, 4 / 8f, 4 / 8f);
+                //        break;
+                //    case 5:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(5 / 8f, 5 / 8f, 5 / 8f);
+                //        break;
+                //    case 6:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(6 / 8f, 6 / 8f, 6 / 8f);
+                //        break;
+                //    case 7:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(7 / 8f, 7 / 8f, 7 / 8f);
+                //        break;
+                //    case 8:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(8 / 8f, 8 / 8f, 8 / 8f);
+                //        break;
+                //    default:
+                //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(9 / 8f, 9 / 8f, 9 / 8f);
+                //        break;
+                //}
             }
         }
 
@@ -318,19 +520,19 @@ public class Globe : MonoBehaviour
         // Visualise tile motion vectors
         for (int i = 0; i < globeTiles.Count; i++)
         {
-            LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+            //LineRenderer line = new GameObject().AddComponent<LineRenderer>();
 
-            line.startWidth = 0.2f;
-            line.endWidth = 0f;
-            line.startColor = Color.magenta;
-            line.endColor = Color.magenta;
-            line.positionCount = 2;
+            //line.startWidth = 0.2f;
+            //line.endWidth = 0f;
+            //line.startColor = Color.magenta;
+            //line.endColor = Color.magenta;
+            //line.positionCount = 2;
 
-            Vector3 tileDelaunayPointScaled = globeTiles[i].delaunayPoint * scale * 1.005f;
-            Vector3 tileMotionEndPoint = tileDelaunayPointScaled + globeTiles[i].motion;
+            //Vector3 tileDelaunayPointScaled = globeTiles[i].delaunayPoint * scale * 1.005f;
+            //Vector3 tileMotionEndPoint = tileDelaunayPointScaled + globeTiles[i].motion;
 
-            line.SetPosition(0, tileDelaunayPointScaled);
-            line.SetPosition(1, tileMotionEndPoint);
+            //line.SetPosition(0, tileDelaunayPointScaled);
+            //line.SetPosition(1, tileMotionEndPoint);
         }
 
         // Visualise tile eges
@@ -362,44 +564,42 @@ public class Globe : MonoBehaviour
             TectonicPlate currentPlate = tectonicPlates[i];
             for (int j = 0; j < currentPlate.perimeterEdges.Count; j++)
             {
-                GlobeTileEdge currentPlateTileEdge = currentPlate.perimeterEdges[j];
-                LineRenderer line = new GameObject().AddComponent<LineRenderer>();
-                line.material = Globe.EdgeMaterial;
+                //GlobeTileEdge currentPlateTileEdge = currentPlate.perimeterEdges[j];
+                //LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+                //line.material = Globe.EdgeMaterial;
 
-                if (currentPlateTileEdge.tectonicPressure <= -1f)
-                {
-                    line.material.color = new Color(0f, 255f, 0f);
-                }
-                else if (currentPlateTileEdge.tectonicPressure > -1f && currentPlateTileEdge.tectonicPressure <= -0.5f)
-                {
-                    line.material.color = new Color(1.5f, 255f, 0f);
-                }
-                else if (currentPlateTileEdge.tectonicPressure > -0.5f && currentPlateTileEdge.tectonicPressure <= 0.5f)
-                {
-                    line.material.color = new Color(255f, 255f, 0f);
-                }
-                else if (currentPlateTileEdge.tectonicPressure > 0.5f && currentPlateTileEdge.tectonicPressure <= 1f)
-                {
-                    line.material.color = new Color(255f, 1.5f, 0f);
-                }
-                else if (currentPlateTileEdge.tectonicPressure > 1f)
-                {
-                    line.material.color = new Color(255f, 0f, 0f);
-                }
+                //if (currentPlateTileEdge.tectonicPressure <= -1f)
+                //{
+                //    line.material.color = new Color(0f, 255f, 0f);
+                //}
+                //else if (currentPlateTileEdge.tectonicPressure > -1f && currentPlateTileEdge.tectonicPressure <= -0.5f)
+                //{
+                //    line.material.color = new Color(1.5f, 255f, 0f);
+                //}
+                //else if (currentPlateTileEdge.tectonicPressure > -0.5f && currentPlateTileEdge.tectonicPressure <= 0.5f)
+                //{
+                //    line.material.color = new Color(255f, 255f, 0f);
+                //}
+                //else if (currentPlateTileEdge.tectonicPressure > 0.5f && currentPlateTileEdge.tectonicPressure <= 1f)
+                //{
+                //    line.material.color = new Color(255f, 1.5f, 0f);
+                //}
+                //else if (currentPlateTileEdge.tectonicPressure > 1f)
+                //{
+                //    line.material.color = new Color(255f, 0f, 0f);
+                //}
 
 
-                line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                //line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-                line.startWidth = 0.15f;
-                line.endWidth = 0.15f;
-                //line.startColor = Color.black;
-                //line.endColor = Color.black;
-                line.positionCount = 2;
+                //line.startWidth = 0.15f;
+                //line.endWidth = 0.15f;
+                //line.positionCount = 2;
 
-                Vector3 linePosition1 = currentPlateTileEdge.vertex1 * scale * 1.0006f;
-                Vector3 linePosition2 = currentPlateTileEdge.vertex2 * scale * 1.0006f;
-                line.SetPosition(0, linePosition1);
-                line.SetPosition(1, linePosition2);
+                //Vector3 linePosition1 = currentPlateTileEdge.vertex1 * scale * 1.0006f;
+                //Vector3 linePosition2 = currentPlateTileEdge.vertex2 * scale * 1.0006f;
+                //line.SetPosition(0, linePosition1);
+                //line.SetPosition(1, linePosition2);
             }
         }
 

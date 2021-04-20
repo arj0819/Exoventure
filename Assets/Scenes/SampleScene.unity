@@ -391,10 +391,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22d7c8c60c9872f4fa448a28fb6a1dc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numberOfTiles: 100
+  numberOfTiles: 1000
   scale: 30
-  jitter: 0
-  numberOfTectonicPlates: 5
+  jitter: 50
+  numberOfTectonicPlates: 100
   tectonicPlateSmoothness: 100
   oceanicRate: 70
   period: 1

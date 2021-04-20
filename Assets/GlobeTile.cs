@@ -6,6 +6,8 @@ public class GlobeTile
 {
     public static int GlobeTileCount = 0;
     public int id = GlobeTileCount;
+    public static List<GlobeTile> AllTiles = new List<GlobeTile>();
+
     private static GK.ConvexHullCalculator ConvexHullCalculator = new GK.ConvexHullCalculator();
 
     public Vector3 delaunayPoint;
@@ -23,7 +25,15 @@ public class GlobeTile
     public TectonicPlate tectonicPlate;
     public int tilesAwayFromPlateSeed = -1;
     public int tilesAwayFromPlatePerimeter = -1;
+    public GlobeTile closestTectonicPerimiterTile;
+    public float tectonicPressure = float.MinValue;
+    public float tectonicSheer = float.MinValue;
     public Vector3 motion;
+    public float elevation;
+    public float moisture;
+    public float temperature;
+
+    public float shuffleValue = Random.value;
 
     public GlobeTile(Vector3 delaunayPoint, List<Vector3> vertices, float scale, float theta)
     {
@@ -56,6 +66,21 @@ public class GlobeTile
         //terrain.GetComponent<MeshRenderer>().material.color = new Color(Random.value, Random.value, Random.value);
         terrain.GetComponent<MeshFilter>().sharedMesh = mesh;
 
-
+        AllTiles.Add(this);
+    }
+    public static void ShuffleAllTiles()
+    {
+        for (int i = 0; i < AllTiles.Count; i++)
+        {
+            AllTiles[i].shuffleValue = Random.value;
+        }
+    }
+    public static void ShuffleTiles(List<GlobeTile> tiles)
+    {
+        for (int i = 0; i < tiles.Count; i++)
+        {
+            tiles[i].shuffleValue = Random.value;
+        }
+        tiles.Sort((a, b) => a.shuffleValue.CompareTo(b.shuffleValue));
     }
 }
