@@ -5,16 +5,6 @@ using System.Linq;
 
 public class TectonicPlate
 {
-    //private struct SuitableNeighborTile
-    //{
-    //    public SuitableNeighborTile(int adjacencyCount, GlobeTile tile)
-    //    {
-    //        this.adjacencyCount = adjacencyCount;
-    //        this.tile = tile;
-    //    }
-    //    public int adjacencyCount { get; }
-    //    public GlobeTile tile { get; }
-    //}
     public static int TotalTectonicPlateCount = 0;
     public const int OCEANIC = 0;
     public const int CONTINENTAL = 1;

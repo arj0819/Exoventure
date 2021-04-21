@@ -21,7 +21,7 @@ public class GlobeTile
 
     public List<Vector3> meshVertices = new List<Vector3>();
     public Mesh mesh = new Mesh();
-    public GameObject terrain = GameObject.CreatePrimitive(PrimitiveType.Quad);
+    public GameObject terrain;
     public TectonicPlate tectonicPlate;
     public int tilesAwayFromPlateSeed = -1;
     public int tilesAwayFromPlatePerimeter = -1;
@@ -60,6 +60,8 @@ public class GlobeTile
         this.mesh.RecalculateTangents();
 
         terrain = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        GameObject globe = GameObject.Find("Globe");
+        terrain.transform.parent = globe.transform;
 
         //terrain.GetComponent<MeshRenderer>().material = new Material(GameObject.Find("WaterMaterial").GetComponent<MeshRenderer>().material);
         terrain.GetComponent<MeshRenderer>().material = new Material(GameObject.Find("DesertMaterial").GetComponent<MeshRenderer>().material);

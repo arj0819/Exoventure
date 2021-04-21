@@ -39,6 +39,28 @@ public class Globe : MonoBehaviour
     public static Material WaterMaterial;
     public static Material EdgeMaterial;
 
+    public static Material WaterElevation10Material;
+    public static Material WaterElevation9Material;
+    public static Material WaterElevation8Material;
+    public static Material WaterElevation7Material;
+    public static Material WaterElevation6Material;
+    public static Material WaterElevation5Material;
+    public static Material WaterElevation4Material;
+    public static Material WaterElevation3Material;
+    public static Material WaterElevation2Material;
+    public static Material WaterElevation1Material;
+
+    public static Material LandElevation10Material;
+    public static Material LandElevation9Material;
+    public static Material LandElevation8Material;
+    public static Material LandElevation7Material;
+    public static Material LandElevation6Material;
+    public static Material LandElevation5Material;
+    public static Material LandElevation4Material;
+    public static Material LandElevation3Material;
+    public static Material LandElevation2Material;
+    public static Material LandElevation1Material;
+
 
     // Start is called before the first frame update
     void Start()
@@ -51,6 +73,28 @@ public class Globe : MonoBehaviour
         TundraMaterial = new Material(GameObject.Find("TundraMaterial").GetComponent<MeshRenderer>().material);
         WaterMaterial = new Material(GameObject.Find("WaterMaterial").GetComponent<MeshRenderer>().material);
         EdgeMaterial = new Material(GameObject.Find("EdgeMaterial").GetComponent<MeshRenderer>().material);
+
+        WaterElevation10Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[0]);
+        WaterElevation9Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[1]);
+        WaterElevation8Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[2]);
+        WaterElevation7Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[3]);
+        WaterElevation6Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[4]);
+        WaterElevation5Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[5]);
+        WaterElevation4Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[6]);
+        WaterElevation3Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[7]);
+        WaterElevation2Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[8]);
+        WaterElevation1Material = new Material(GameObject.Find("WaterElevationMaterials").GetComponent<MeshRenderer>().materials[9]);
+
+        LandElevation10Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[0]);
+        LandElevation9Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[1]);
+        LandElevation8Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[2]);
+        LandElevation7Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[3]);
+        LandElevation6Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[4]);
+        LandElevation5Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[5]);
+        LandElevation4Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[6]);
+        LandElevation3Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[7]);
+        LandElevation2Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[8]);
+        LandElevation1Material = new Material(GameObject.Find("LandElevationMaterials").GetComponent<MeshRenderer>().materials[9]);
 
         // Initialize 
         tileGraphNodes = GenerateTileGraphNodes(numberOfTiles);
@@ -397,22 +441,62 @@ public class Globe : MonoBehaviour
 
                         if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
                         {
-                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                            if (currentPerimeterTile.tectonicPressure > 0)
+                            {
+                                // (current plate) CONTINENTAL --> | <-- CONTINENTAL (adjacent plate)
+                                float alterElevation = Random.value;
+                                if (alterElevation > 0.4f)
+                                {
+                                    currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                                }
+                            } else {
+                                // (current plate) CONTINENTAL <-- | --> CONTINENTAL (adjacent plate)
+                                float alterElevation = Random.value;
+                                if (alterElevation > 0.8f)
+                                {
+                                    currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                                }
+                            }
                         }
                         else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
                         {
-                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                            if (currentPerimeterTile.tectonicPressure > 0)
+                            {
+                                // (current plate) CONTINENTAL --> | <-- OCEANIC (adjacent plate)
+                                float alterElevation = Random.value;
+                                if (alterElevation > 0.4f)
+                                {
+                                    currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                                }
+                            } else {
+                                // (current plate) CONTINENTAL <-- | --> OCEANIC (adjacent plate)
+                                currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure / 2.2f;
+                            }
                         }
                         else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
                         {
-                            currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                            if (currentPerimeterTile.tectonicPressure > 0)
+                            {
+                                // (current plate) OCEANIC --> | <-- CONTINENTAL (adjacent plate)
+                                currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                            } else {
+                                // (current plate) OCEANIC <-- | --> CONTINENTAL (adjacent plate)
+                                //currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure / 2.2f;
+                            }
                         }
                         else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
                         {
-                            float alterElevation = Random.value;
-                            if (alterElevation > 0.5f)
+                            if (currentPerimeterTile.tectonicPressure > 0)
                             {
-                                currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                                // (current plate) OCEANIC --> | <-- OCEANIC (adjacent plate)
+                                float alterElevation = Random.value;
+                                if (alterElevation > 0.8f)
+                                {
+                                    currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure;
+                                }
+                            } else {
+                                // (current plate) OCEANIC <-- | --> OCEANIC (adjacent plate)
+                                currentPerimeterTile.elevation += currentPerimeterTile.tectonicPressure / 2.2f;
                             }
                         }
 
@@ -478,6 +562,7 @@ public class Globe : MonoBehaviour
             //tectonicPlates[i].plateTiles.Sort((a, b) => a.tilesAwayFromPlatePerimeter.CompareTo(b.tilesAwayFromPlatePerimeter));
             for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
             {
+                GlobeTile currentPlateTile = tectonicPlates[i].plateTiles[j];
                 //print(tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter);
                 //tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
                 //switch (tectonicPlates[i].plateTiles[j].tilesAwayFromPlatePerimeter)
@@ -513,6 +598,86 @@ public class Globe : MonoBehaviour
                 //        tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(9 / 8f, 9 / 8f, 9 / 8f);
                 //        break;
                 //}
+
+                if (currentPlateTile.elevation > 0.9f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation10Material;
+                } else if (currentPlateTile.elevation <= 0.9f && currentPlateTile.elevation > 0.8f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation9Material;
+                }
+                else if (currentPlateTile.elevation <= 0.8f && currentPlateTile.elevation > 0.7f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation8Material;
+                }
+                else if (currentPlateTile.elevation <= 0.7f && currentPlateTile.elevation > 0.6f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation7Material;
+                }
+                else if (currentPlateTile.elevation <= 0.6f && currentPlateTile.elevation > 0.5f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation6Material;
+                }
+                else if (currentPlateTile.elevation <= 0.5f && currentPlateTile.elevation > 0.4f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation5Material;
+                }
+                else if (currentPlateTile.elevation <= 0.4f && currentPlateTile.elevation > 0.3f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation4Material;
+                }
+                else if (currentPlateTile.elevation <= 0.3f && currentPlateTile.elevation > 0.2f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation3Material;
+                }
+                else if (currentPlateTile.elevation <= 0.2f && currentPlateTile.elevation > 0.1f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation2Material;
+                }
+                else if (currentPlateTile.elevation <= 0.1f && currentPlateTile.elevation > 0.0f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.LandElevation1Material;
+                }
+                else if (currentPlateTile.elevation <= 0.0f && currentPlateTile.elevation > -0.1f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation1Material;
+                }
+                else if (currentPlateTile.elevation <= -0.1f && currentPlateTile.elevation > -0.2f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation2Material;
+                }
+                else if (currentPlateTile.elevation <= -0.2f && currentPlateTile.elevation > -0.3f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation3Material;
+                }
+                else if (currentPlateTile.elevation <= -0.3f && currentPlateTile.elevation > -0.4f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation4Material;
+                }
+                else if (currentPlateTile.elevation <= -0.4f && currentPlateTile.elevation > -0.5f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation5Material;
+                }
+                else if (currentPlateTile.elevation <= -0.5f && currentPlateTile.elevation > -0.6f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation6Material;
+                }
+                else if (currentPlateTile.elevation <= -0.6f && currentPlateTile.elevation > -0.7f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation7Material;
+                }
+                else if (currentPlateTile.elevation <= -0.7f && currentPlateTile.elevation > -0.8f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation4Material;
+                }
+                else if (currentPlateTile.elevation <= -0.8f && currentPlateTile.elevation > -0.9f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation9Material;
+                }
+                else if (currentPlateTile.elevation <= -0.9f)
+                {
+                    currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation10Material;
+                }
             }
         }
 
@@ -520,19 +685,21 @@ public class Globe : MonoBehaviour
         // Visualise tile motion vectors
         for (int i = 0; i < globeTiles.Count; i++)
         {
-            //LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+            GameObject globeTileMotionVectors = GameObject.Find("GlobeTileMotionVectors");
+            LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+            line.transform.parent = globeTileMotionVectors.transform;
 
-            //line.startWidth = 0.2f;
-            //line.endWidth = 0f;
-            //line.startColor = Color.magenta;
-            //line.endColor = Color.magenta;
-            //line.positionCount = 2;
+            line.startWidth = 0.2f;
+            line.endWidth = 0f;
+            line.startColor = Color.magenta;
+            line.endColor = Color.magenta;
+            line.positionCount = 2;
 
-            //Vector3 tileDelaunayPointScaled = globeTiles[i].delaunayPoint * scale * 1.005f;
-            //Vector3 tileMotionEndPoint = tileDelaunayPointScaled + globeTiles[i].motion;
+            Vector3 tileDelaunayPointScaled = globeTiles[i].delaunayPoint * scale * 1.005f;
+            Vector3 tileMotionEndPoint = tileDelaunayPointScaled + globeTiles[i].motion;
 
-            //line.SetPosition(0, tileDelaunayPointScaled);
-            //line.SetPosition(1, tileMotionEndPoint);
+            line.SetPosition(0, tileDelaunayPointScaled);
+            line.SetPosition(1, tileMotionEndPoint);
         }
 
         // Visualise tile eges
@@ -540,7 +707,9 @@ public class Globe : MonoBehaviour
         for (int j = 0; j < globeEdges.Count; j++)
         {
             GlobeTileEdge currentGlobeTileEdge = globeEdges[j];
+            GameObject globeTileGrid = GameObject.Find("GlobeTileGrid");
             LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+            line.transform.parent = globeTileGrid.transform;
             line.material = Globe.DesertMaterial;
             line.material.color = Color.black;
             line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -555,6 +724,7 @@ public class Globe : MonoBehaviour
             Vector3 linePosition2 = currentGlobeTileEdge.vertex2 * scale * 1.0005f;
             line.SetPosition(0, linePosition1);
             line.SetPosition(1, linePosition2);
+
         }
         print(globeEdges.Count);
 
@@ -564,42 +734,44 @@ public class Globe : MonoBehaviour
             TectonicPlate currentPlate = tectonicPlates[i];
             for (int j = 0; j < currentPlate.perimeterEdges.Count; j++)
             {
-                //GlobeTileEdge currentPlateTileEdge = currentPlate.perimeterEdges[j];
-                //LineRenderer line = new GameObject().AddComponent<LineRenderer>();
-                //line.material = Globe.EdgeMaterial;
+                GlobeTileEdge currentPlateTileEdge = currentPlate.perimeterEdges[j];
+                GameObject tectonicForceLines = GameObject.Find("TectonicForceLines");
+                LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+                line.transform.parent = tectonicForceLines.transform;
+                line.material = Globe.EdgeMaterial;
 
-                //if (currentPlateTileEdge.tectonicPressure <= -1f)
-                //{
-                //    line.material.color = new Color(0f, 255f, 0f);
-                //}
-                //else if (currentPlateTileEdge.tectonicPressure > -1f && currentPlateTileEdge.tectonicPressure <= -0.5f)
-                //{
-                //    line.material.color = new Color(1.5f, 255f, 0f);
-                //}
-                //else if (currentPlateTileEdge.tectonicPressure > -0.5f && currentPlateTileEdge.tectonicPressure <= 0.5f)
-                //{
-                //    line.material.color = new Color(255f, 255f, 0f);
-                //}
-                //else if (currentPlateTileEdge.tectonicPressure > 0.5f && currentPlateTileEdge.tectonicPressure <= 1f)
-                //{
-                //    line.material.color = new Color(255f, 1.5f, 0f);
-                //}
-                //else if (currentPlateTileEdge.tectonicPressure > 1f)
-                //{
-                //    line.material.color = new Color(255f, 0f, 0f);
-                //}
+                if (currentPlateTileEdge.tectonicPressure <= -1f)
+                {
+                    line.material.color = new Color(0f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > -1f && currentPlateTileEdge.tectonicPressure <= -0.5f)
+                {
+                    line.material.color = new Color(1.5f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > -0.5f && currentPlateTileEdge.tectonicPressure <= 0.5f)
+                {
+                    line.material.color = new Color(255f, 255f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > 0.5f && currentPlateTileEdge.tectonicPressure <= 1f)
+                {
+                    line.material.color = new Color(255f, 1.5f, 0f);
+                }
+                else if (currentPlateTileEdge.tectonicPressure > 1f)
+                {
+                    line.material.color = new Color(255f, 0f, 0f);
+                }
 
 
-                //line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-                //line.startWidth = 0.15f;
-                //line.endWidth = 0.15f;
-                //line.positionCount = 2;
+                line.startWidth = 0.15f;
+                line.endWidth = 0.15f;
+                line.positionCount = 2;
 
-                //Vector3 linePosition1 = currentPlateTileEdge.vertex1 * scale * 1.0006f;
-                //Vector3 linePosition2 = currentPlateTileEdge.vertex2 * scale * 1.0006f;
-                //line.SetPosition(0, linePosition1);
-                //line.SetPosition(1, linePosition2);
+                Vector3 linePosition1 = currentPlateTileEdge.vertex1 * scale * 1.0006f;
+                Vector3 linePosition2 = currentPlateTileEdge.vertex2 * scale * 1.0006f;
+                line.SetPosition(0, linePosition1);
+                line.SetPosition(1, linePosition2);
             }
         }
 
