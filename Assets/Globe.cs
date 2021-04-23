@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Diagnostics;
 
 public class Globe : MonoBehaviour
 {
@@ -10,10 +11,12 @@ public class Globe : MonoBehaviour
         public static List<Vector3> AllVectors = new List<Vector3>();
         public static List<UnitSpherePoint> AllUnitSpherePoints = new List<UnitSpherePoint>();
         public Vector3 point { get; }
+        public float phi { get; }
         public float theta { get; }
-        public UnitSpherePoint(Vector3 point, float theta)
+        public UnitSpherePoint(Vector3 point, float phi, float theta)
         {
             this.point = point;
+            this.phi = phi;
             this.theta = theta;
             AllVectors.Add(this.point);
             AllUnitSpherePoints.Add(this);
@@ -30,6 +33,7 @@ public class Globe : MonoBehaviour
     public static List<GlobeTile> globeTiles = new List<GlobeTile>();
     private List<TectonicPlate> globePlates = new List<TectonicPlate>();
     private bool globeGenerationFinished = false;
+    public Atmosphere atmosphere = new Atmosphere();
 
     public static Material DesertMaterial;
     public static Material GrasslandMaterial;
@@ -65,6 +69,7 @@ public class Globe : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Stopwatch overallPerformance = Stopwatch.StartNew();
         // Load materials
         DesertMaterial = new Material(GameObject.Find("DesertMaterial").GetComponent<MeshRenderer>().material);
         GrasslandMaterial = new Material(GameObject.Find("GrasslandMaterial").GetComponent<MeshRenderer>().material);
@@ -112,9 +117,13 @@ public class Globe : MonoBehaviour
         var centroidNormals = new List<Vector3>();
 
         // Generate delaunay convex hull
+        Stopwatch delaunayConvexHullGeneration = Stopwatch.StartNew();
         convexHullCalculator.GenerateHull(UnitSpherePoint.AllVectors, true, ref delaunayVerticies, ref delaunayTriangles, ref delaunayNormals);
+        delaunayConvexHullGeneration.Stop();
+        print("Delaunay Convex Hull Generation -> " + delaunayConvexHullGeneration.Elapsed);
 
         // Determine centroids of each delaunay triangle on the convex hull
+        Stopwatch centroidDetermination = Stopwatch.StartNew();
         Vector3 firstDelaunayTriangleVertex = new Vector3();
         Vector3 secondDelaunayTriangleVertex = new Vector3();
         Vector3 thirdDelaunayTriangleVertex = new Vector3();
@@ -151,12 +160,48 @@ public class Globe : MonoBehaviour
                 delaunayVertexSeeds.Clear();
             }
         }
+        centroidDetermination.Stop();
+        print("Centroid Determination -> " + centroidDetermination.Elapsed);
 
+        // We don't need this anymore
         // Generate the centroidal voronoi convex hull
-        convexHullCalculator.GenerateHull(CentroidPoint.All, true, ref centroidVerticies, ref centroidTriangles, ref centroidNormals);
-        print(CentroidPoint.All.Count);
+        //convexHullCalculator.GenerateHull(CentroidPoint.All, true, ref centroidVerticies, ref centroidTriangles, ref centroidNormals);
 
-        //Determine each tile
+        //Determine each tile (First Attempt)
+        //Stopwatch tileDetermination = Stopwatch.StartNew();
+        //List<Vector3> tileVertices = new List<Vector3>();
+        //for (int i = 0; i < centroids.Count; i++)
+        //{
+        //    CentroidPoint currentCentroidPoint = centroids[i];
+        //    for (int p = 0; p < currentCentroidPoint.delaunayParents.Count; p++)
+        //    {
+        //        Vector3 currentCentroidPointParent = currentCentroidPoint.delaunayParents[p];
+        //        for (int j = 0; j < centroids.Count; j++)
+        //        {
+        //            CentroidPoint nextCentroidPoint = centroids[j];
+        //            for (int k = 0; k < nextCentroidPoint.delaunayParents.Count; k++)
+        //            {
+        //                Vector3 nextCentroidPointCurrentDelaunayParent = nextCentroidPoint.delaunayParents[k];
+        //                if (currentCentroidPointParent == nextCentroidPointCurrentDelaunayParent)
+        //                {
+        //                    tileVertices.Add(nextCentroidPoint.centroid);
+        //                }
+        //            }
+        //        }
+        //        if (globeTiles.Find(tile => tile.delaunayPoint == currentCentroidPointParent) == null)
+        //        {
+        //            Vector3 globeTileVector = new Vector3(currentCentroidPointParent.x, currentCentroidPointParent.y, currentCentroidPointParent.z);
+        //            Vector3 globeTileMatchingUnitSpherePoint = UnitSpherePoint.AllVectors.Find(point => point.Equals(globeTileVector));
+        //            globeTiles.Add(new GlobeTile(globeTileVector, new List<Vector3>(tileVertices), scale, UnitSpherePoint.AllUnitSpherePoints[UnitSpherePoint.AllVectors.IndexOf(globeTileVector)].theta));
+        //        }
+        //        tileVertices.Clear();
+        //    }
+        //}
+        //tileDetermination.Stop();
+        //print("Tile Determination -> " + tileDetermination.Elapsed);
+
+        //Determine each tile (Second Attempt)
+        Stopwatch tileDetermination = Stopwatch.StartNew();
         List<Vector3> tileVertices = new List<Vector3>();
         for (int i = 0; i < centroids.Count; i++)
         {
@@ -164,31 +209,39 @@ public class Globe : MonoBehaviour
             for (int p = 0; p < currentCentroidPoint.delaunayParents.Count; p++)
             {
                 Vector3 currentCentroidPointParent = currentCentroidPoint.delaunayParents[p];
-                for (int j = 0; j < centroids.Count; j++)
+                List<CentroidPoint> centroidsSharingCurrentDelaunayParent = centroids.FindAll(point => point.delaunayParents.Contains(currentCentroidPointParent));
+                for (int j = 0; j < centroidsSharingCurrentDelaunayParent.Count; j++)
                 {
-                    CentroidPoint nextCentroidPoint = centroids[j];
-                    for (int k = 0; k < nextCentroidPoint.delaunayParents.Count; k++)
-                    {
-                        Vector3 nextCentroidPointCurrentDelaunayParent = nextCentroidPoint.delaunayParents[k];
-                        if (currentCentroidPointParent == nextCentroidPointCurrentDelaunayParent)
-                        {
-                            tileVertices.Add(nextCentroidPoint.centroid);
-                        }
-                    }
+                    CentroidPoint nextCentroidPoint = centroidsSharingCurrentDelaunayParent[j];
+                    tileVertices.Add(nextCentroidPoint.centroid);
                 }
                 if (globeTiles.Find(tile => tile.delaunayPoint == currentCentroidPointParent) == null)
                 {
                     Vector3 globeTileVector = new Vector3(currentCentroidPointParent.x, currentCentroidPointParent.y, currentCentroidPointParent.z);
                     Vector3 globeTileMatchingUnitSpherePoint = UnitSpherePoint.AllVectors.Find(point => point.Equals(globeTileVector));
-                    globeTiles.Add(new GlobeTile(globeTileVector, new List<Vector3>(tileVertices), scale, UnitSpherePoint.AllUnitSpherePoints[UnitSpherePoint.AllVectors.IndexOf(globeTileVector)].theta));
+                    GlobeTile nextGlobeTile = new GlobeTile(globeTileVector,
+                        new List<Vector3>(tileVertices),
+                        scale,
+                        UnitSpherePoint.AllUnitSpherePoints[UnitSpherePoint.AllVectors.IndexOf(globeTileVector)].phi,
+                        UnitSpherePoint.AllUnitSpherePoints[UnitSpherePoint.AllVectors.IndexOf(globeTileVector)].theta
+                    );
+                    AtmospherePoint nextAtmospherePoint = new AtmospherePoint(nextGlobeTile);
+                    nextGlobeTile.atmospherePoint = nextAtmospherePoint;
+                    globeTiles.Add(nextGlobeTile);
+                    atmosphere.atmospherePoints.Add(nextAtmospherePoint);
                 }
                 tileVertices.Clear();
             }
         }
-        print(globeTiles.Count);
+        tileDetermination.Stop();
+        print("Tile Determination -> " + tileDetermination.Elapsed);
+
+
+
 
 
         // Determine each tile's neighbors and edges
+        Stopwatch neighborEdgeDetermination = Stopwatch.StartNew();
         List<GlobeTile> neighboringTiles = new List<GlobeTile>();
         globeTiles = new List<GlobeTile>(globeTiles.OrderBy(tile => Vector3.Distance(globeTiles[0].delaunayPoint, tile.delaunayPoint)));
         for (int i = 0; i < globeTiles.Count; i++)
@@ -212,6 +265,7 @@ public class Globe : MonoBehaviour
                     commonVertices = currentGlobeTile.vertices.Intersect(neighboringTiles[j].vertices).ToList();
                 }
                 currentGlobeTile.neighborTiles.Add(neighboringTiles[j]);
+                currentGlobeTile.atmospherePoint.neighborPoints.Add(neighboringTiles[j].atmospherePoint);
                 GlobeTile currentNeighboringTile = neighboringTiles[j];
                 List<GlobeTile> adjacentTiles = new List<GlobeTile>();
                 adjacentTiles.Add(currentGlobeTile);
@@ -227,8 +281,11 @@ public class Globe : MonoBehaviour
             }
             neighboringTiles.Clear();
         }
+        neighborEdgeDetermination.Stop();
+        print("Neighbor and Edge Determination -> " + neighborEdgeDetermination.Elapsed);
 
         // Generate Tectonic Plate Seeds
+        Stopwatch tectonicSeedGeneration = Stopwatch.StartNew();
         List<GlobeTile> tectonicPlateSeeds = new List<GlobeTile>();
         List<GlobeTile> chosenGlobeTiles = new List<GlobeTile>();
         for (int i = 0; i < numberOfTectonicPlates; i++)
@@ -242,6 +299,8 @@ public class Globe : MonoBehaviour
             chosenGlobeTiles.Add(globeTiles[seedIndex]);
             globeTiles[seedIndex].terrain.GetComponent<MeshRenderer>().material = new Material(GameObject.Find("DesertMaterial").GetComponent<MeshRenderer>().material);
         }
+        tectonicSeedGeneration.Stop();
+        print("Tectonic Seed Generation -> " + tectonicSeedGeneration.Elapsed);
 
         // Build Tectonic Plates
         List<TectonicPlate> tectonicPlates = new List<TectonicPlate>();
@@ -249,6 +308,12 @@ public class Globe : MonoBehaviour
         {
             tectonicPlates.Add(new TectonicPlate(tectonicPlateSeeds[i], tectonicPlateSmoothness, oceanicRate));
         }
+
+        // Working First Attempt (Fairly slow)
+        Stopwatch tectonicPlateBuilding = Stopwatch.StartNew();
+        Stopwatch findNextPlateTotalTime = Stopwatch.StartNew();
+        findNextPlateTotalTime.Stop();
+        findNextPlateTotalTime.Reset();
         List<int> finishedPlateIndices = new List<int>();
         while (finishedPlateIndices.Count < tectonicPlates.Count)
         {
@@ -256,15 +321,21 @@ public class Globe : MonoBehaviour
             {
                 if (!finishedPlateIndices.Contains(i))
                 {
+                    findNextPlateTotalTime = Stopwatch.StartNew();
                     if (!tectonicPlates[i].FindNextTiles())
                     {
                         finishedPlateIndices.Add(i);
                     }
+                    findNextPlateTotalTime.Stop();
                 }
             }
         }
+        tectonicPlateBuilding.Stop();
+        print("Tectonic Plate Building -> " + tectonicPlateBuilding.Elapsed);
+        print("Find Next Plate Total -> " + findNextPlateTotalTime.Elapsed);
 
         // Determine the stresses on each edge of each tectonic plate
+        Stopwatch tectonicForceDetermination = Stopwatch.StartNew();
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
             TectonicPlate currentTectonicPlate = tectonicPlates[i];
@@ -398,8 +469,11 @@ public class Globe : MonoBehaviour
             }
 
         }
+        tectonicForceDetermination.Stop();
+        print("Tectonic Force Determination -> " + tectonicForceDetermination.Elapsed);
 
         // Normalize tectonic pressure and sheer so that pressure is in [-1, 1] and sheer is in [0, 1] across the globe
+        Stopwatch tectonicForceNormalization = Stopwatch.StartNew();
         List<GlobeTile> tilesSortedByTectonicPressure = new List<GlobeTile>(globeTiles);
         List<GlobeTile> tilesSortedByTectonicSheer = new List<GlobeTile>(globeTiles);
         tilesSortedByTectonicPressure.Sort((a, b) => b.tectonicPressure.CompareTo(a.tectonicPressure));
@@ -414,8 +488,11 @@ public class Globe : MonoBehaviour
             currentPlateTile.tectonicPressure = (2 * ((currentPlateTile.tectonicPressure - leastTectonicPressure) / (greatestTectonicPressure - leastTectonicPressure))) - 1;
             currentPlateTile.tectonicSheer = (currentPlateTile.tectonicSheer - leastTectonicSheer) / (greatestTectonicSheer - leastTectonicSheer);
         }
+        tectonicForceNormalization.Stop();
+        print("Tectonic Force Normalization -> " + tectonicForceNormalization.Elapsed);
 
         // Determine the elevations for the tiles of each tectonic plate
+        Stopwatch elevationDetermination = Stopwatch.StartNew();
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
             // First we need to determine the elevation of each tile on the perimeter of the tectonic plate by looking at how it's interacting with adjacent plates
@@ -543,6 +620,8 @@ public class Globe : MonoBehaviour
                 }
             }
         }
+        elevationDetermination.Stop();
+        print("Elevation Determination -> " + elevationDetermination.Elapsed);
 
 
 
@@ -680,6 +759,61 @@ public class Globe : MonoBehaviour
                 }
             }
         }
+        for (int i = 0; i < tectonicPlates.Count; i++)
+        {
+            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = (tectonicPlates[i].plateType == TectonicPlate.CONTINENTAL ? Globe.GrasslandMaterial : Globe.SnowMaterial);
+            //print(tectonicPlates[i].plateTiles.Count);
+            //print(tectonicPlates[i].perimeterTiles.Count);
+            //print(tectonicPlates[i].perimeterTileNeighbors.Count);
+            //print(tectonicPlates[i].perimeterEdges.Count);
+            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = Globe.GrasslandMaterial;
+            //tectonicPlates[i].plateTiles.Sort((a, b) => a.tilesAwayFromPlatePerimeter.CompareTo(b.tilesAwayFromPlatePerimeter));
+            for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
+            {
+                GlobeTile currentPlateTile = tectonicPlates[i].plateTiles[j];
+                tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.DesertMaterial;
+                if (currentPlateTile.moisture > 0.9f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(0 / 8f, 0 / 8f, 0 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.9f && currentPlateTile.moisture > 0.8f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(1 / 8f, 1 / 8f, 1 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.8f && currentPlateTile.moisture > 0.7f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(2 / 8f, 2 / 8f, 2 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.7f && currentPlateTile.moisture > 0.6f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(3 / 8f, 3 / 8f, 3 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.6f && currentPlateTile.moisture > 0.5f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(4 / 8f, 4 / 8f, 4 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.5f && currentPlateTile.moisture > 0.4f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(5 / 8f, 5 / 8f, 5 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.4f && currentPlateTile.moisture > 0.3f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(6 / 8f, 6 / 8f, 6 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.3f && currentPlateTile.moisture > 0.2f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(7 / 8f, 7 / 8f, 7 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.2f && currentPlateTile.moisture > 0.1f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(8 / 8f, 8 / 8f, 8 / 8f);
+                }
+                else if (currentPlateTile.moisture <= 0.1f)
+                {
+                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material.color = new Color(9 / 8f, 9 / 8f, 9 / 8f);
+                }
+            }
+        }
 
 
         // Visualise tile motion vectors
@@ -700,6 +834,29 @@ public class Globe : MonoBehaviour
 
             line.SetPosition(0, tileDelaunayPointScaled);
             line.SetPosition(1, tileMotionEndPoint);
+        }
+
+        // Visualise atmosphere wind vectors
+        for (int i = 0; i < atmosphere.atmospherePoints.Count; i++)
+        {
+            GameObject globeTileMotionVectors = GameObject.Find("AtmosphereWindVectors");
+            LineRenderer line = new GameObject().AddComponent<LineRenderer>();
+            line.transform.parent = globeTileMotionVectors.transform;
+            line.material = Globe.DesertMaterial;
+            line.material.color = atmosphere.atmospherePoints[i].color;
+            line.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            line.startWidth = 0.5f;
+            line.endWidth = 0f;
+            line.startColor = Color.magenta;
+            line.endColor = Color.magenta;
+            line.positionCount = 2;
+
+            Vector3 atmospherePointScaled = atmosphere.atmospherePoints[i].point;
+            Vector3 atmosphereWindEndPoint = atmospherePointScaled + atmosphere.atmospherePoints[i].windDirection;
+
+            line.SetPosition(0, atmospherePointScaled);
+            line.SetPosition(1, atmosphereWindEndPoint);
         }
 
         // Visualise tile eges
@@ -726,7 +883,6 @@ public class Globe : MonoBehaviour
             line.SetPosition(1, linePosition2);
 
         }
-        print(globeEdges.Count);
 
         // Visualize tectonic plate boundaries by their tectonic pressure
         for (int i = 0; i < tectonicPlates.Count; i++)
@@ -865,6 +1021,15 @@ public class Globe : MonoBehaviour
         //    tileGraphNodeSpheres[i].transform.localScale = new Vector3(0.02f, 0.02f, 0.02f);
         //}
 
+        //// Add spheres to each atmosphere point
+        //for (int i = 0; i < atmosphere.atmospherePoints.Count; i++)
+        //{
+        //    tileGraphNodeSpheres.Add(GameObject.CreatePrimitive(PrimitiveType.Sphere));
+        //    tileGraphNodeSpheres[i].transform.parent = transform;
+        //    tileGraphNodeSpheres[i].transform.position = atmosphere.atmospherePoints[i].delaunayPoint * atmosphere.atmospherePoints[i].scale;
+        //    tileGraphNodeSpheres[i].transform.localScale = new Vector3(0.04f, 0.04f, 0.04f);
+        //}
+
 
 
 
@@ -909,6 +1074,8 @@ public class Globe : MonoBehaviour
         //    }
         //}
         globeGenerationFinished = true;
+        overallPerformance.Stop();
+        print("Overall Performance -> " + overallPerformance.Elapsed);
     }
 
     private float nextActionTime = 0f;
@@ -950,35 +1117,28 @@ public class Globe : MonoBehaviour
     List<UnitSpherePoint> GenerateTileGraphNodes(int numberOfTiles)
     {
         List<UnitSpherePoint> tileGraphNodes = new List<UnitSpherePoint>();
-        float nodeSeparationAngle = Mathf.PI * (3 - Mathf.Sqrt(5)); //roughly 2.4f always
-        float deltaTheta = 2f / numberOfTiles;
-        float nodeTheta = 0;
-        float nodePositionX = 0;
-        float nodePositionY = 0;
-        float nodePositionZ = 0;
-        float nodeDistanceFromGlobeOrigin = 0;
-        float nodePhi = 0;
 
-        for (var currentNodeNumber = 0; currentNodeNumber <= numberOfTiles; currentNodeNumber++)
+        for (int i = 0; i < numberOfTiles; i++)
         {
-
             if (jitter > 100)
             {
                 jitter = 100;
             }
-            var jitterPhiDirection = Random.value > 0.5f ? 1 : -1;
-            var jitterPhi = ((Random.value / (numberOfTiles)) * jitter) * jitterPhiDirection;
+            int jitterThetaDirection = Random.value > 0.5f ? 1 : -1;
+            float jitterTheta = ((Random.value / (numberOfTiles)) * jitter) * jitterThetaDirection;
 
-            nodePositionY = ((currentNodeNumber * deltaTheta) - 1) + (deltaTheta / 2);
-            nodeDistanceFromGlobeOrigin = Mathf.Sqrt(1 - Mathf.Pow(nodePositionY, 2));
-            nodePhi = currentNodeNumber * nodeSeparationAngle + jitterPhi;
-            nodePositionX = Mathf.Cos(nodePhi) * nodeDistanceFromGlobeOrigin;
-            nodePositionZ = Mathf.Sin(nodePhi) * nodeDistanceFromGlobeOrigin;
-            nodePhi -= jitterPhi;
-            nodeTheta += deltaTheta;
+            float k = i + .5f;
 
-            tileGraphNodes.Add(new UnitSpherePoint(new Vector3(nodePositionX, nodePositionY , nodePositionZ), nodeTheta));
+            float phi = Mathf.Acos(1f - 2f * k / numberOfTiles);
+            float theta = Mathf.PI * (1 + Mathf.Sqrt(5)) * k + jitterTheta;
+
+            float x = Mathf.Cos(theta) * Mathf.Sin(phi);
+            float y = Mathf.Cos(phi);
+            float z = Mathf.Sin(theta) * Mathf.Sin(phi);
+
+            tileGraphNodes.Add(new UnitSpherePoint(new Vector3(x, y, z), phi, theta));
         }
+
 
         return tileGraphNodes;
     }

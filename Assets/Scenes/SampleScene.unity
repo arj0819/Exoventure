@@ -204,6 +204,36 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &387787092
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 387787093}
+  m_Layer: 0
+  m_Name: AtmosphereWindVectors
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &387787093
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 387787092}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1.3454125, y: -0.04634458, z: 8.612754}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 19
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &420730047
 GameObject:
   m_ObjectHideFlags: 0
@@ -553,9 +583,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22d7c8c60c9872f4fa448a28fb6a1dc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numberOfTiles: 4000
+  numberOfTiles: 2000
   scale: 50
-  jitter: 100
+  jitter: 50
   numberOfTectonicPlates: 20
   tectonicPlateSmoothness: 15
   oceanicRate: 71

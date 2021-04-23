@@ -318,6 +318,13 @@ public class TectonicPlate
         {
             int possibleNeighborIndex = Random.Range(0, possibleNeighbors.Count);
             GlobeTile nextTile = possibleNeighbors[possibleNeighborIndex];
+
+            // Check if this tile was already claimed by another plate. If so, just skip to the next tile
+            if (nextTile.tectonicPlate != null)
+            {
+                continue;
+            }
+
             nextTile.elevation = this.defaultElevation;
 
             nextTile.motion = Vector3.Cross(nextTile.delaunayPoint, this.planetaryRotationAxis).normalized;
@@ -353,21 +360,27 @@ public class TectonicPlate
             for (int j = 0; j < currentPlateTile.neighborTiles.Count; j++)
             {
                 GlobeTile currentPlateTileNeighbor = currentPlateTile.neighborTiles[j];
-                Vector3 currentPlateTileNeighborDelaunayPoint = currentPlateTileNeighbor.delaunayPoint;
-                if (AllPlateTiles.Find(tile => tile.delaunayPoint == currentPlateTileNeighborDelaunayPoint) == null)
+                if (currentPlateTileNeighbor.tectonicPlate != null)
                 {
-                    bool neighborIsClaimed = false;
-                    for (int k = 0; k < AllPlates.Count; k++)
-                    {
-                        if (AllPlates[k].possibleNeighbors.Find(tile => tile.delaunayPoint == currentPlateTileNeighborDelaunayPoint) != null)
-                        {
-                            neighborIsClaimed = true;
-                        }
-                    }
-                    if (!neighborIsClaimed)
-                    {
-                        this.possibleNeighbors.Add(currentPlateTileNeighbor);
-                    }
+                    continue;
+                }
+
+                if (AllPlateTiles.Find(tile => tile.id == currentPlateTileNeighbor.id) == null)
+                {
+                    // Avoid nesting a third loop, simply check above if the chosen possible neighbor was already claimed by checking the tile's tectonicPlate instance
+                    //bool neighborIsClaimed = false;
+                    //for (int k = 0; k < AllPlates.Count; k++)
+                    //{
+                    //    if (AllPlates[k].possibleNeighbors.Find(tile => tile.delaunayPoint == currentPlateTileNeighborDelaunayPoint) != null)
+                    //    {
+                    //        neighborIsClaimed = true;
+                    //    }
+                    //}
+                    //if (!neighborIsClaimed)
+                    //{
+                    //    this.possibleNeighbors.Add(currentPlateTileNeighbor);
+                    //}
+                    this.possibleNeighbors.Add(currentPlateTileNeighbor);
                 }
             }
         }
