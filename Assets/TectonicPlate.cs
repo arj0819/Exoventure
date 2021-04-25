@@ -48,7 +48,7 @@ public class TectonicPlate
         }
 
         this.plateType = (Random.value * 100) > oceanicRate ? CONTINENTAL : OCEANIC;
-        float possibleElevation = this.plateType == CONTINENTAL ? Random.Range(0.4f, 0.6f) : Random.Range(0.4f, 0.6f) * -1;
+        float possibleElevation = this.plateType == CONTINENTAL ? Random.Range(0.1f, 0.2f) : Random.Range(0.4f, 0.6f) * -1;
         this.defaultElevation = possibleElevation;
 
         TotalTectonicPlateCount++;
@@ -56,10 +56,11 @@ public class TectonicPlate
         AllPlateTiles.Add(seed);
         this.seed = seed;
         this.seed.tilesAwayFromPlateSeed = 0;
-        this.seed.elevation = this.defaultElevation;
+        this.seed.SetElevation(this.defaultElevation);
         this.plateRotationAxis = this.seed.delaunayPoint.normalized;
         this.seed.motion = Vector3.Cross(this.seed.delaunayPoint, this.planetaryRotationAxis).normalized;
         this.seed.motion *= planetaryRotationScalar;
+        this.seed.motion *= 5f;
 
 
         this.plateTiles.Add(seed);
@@ -325,13 +326,14 @@ public class TectonicPlate
                 continue;
             }
 
-            nextTile.elevation = this.defaultElevation;
+            nextTile.SetElevation(this.defaultElevation);
 
             nextTile.motion = Vector3.Cross(nextTile.delaunayPoint, this.planetaryRotationAxis).normalized;
             nextTile.motion *= planetaryRotationScalar;
 
             Vector3 tileRotationalMotion = Vector3.Cross(this.seed.delaunayPoint, (this.seed.delaunayPoint - nextTile.delaunayPoint)) * plateRotationScalar;
             nextTile.motion += tileRotationalMotion;
+            nextTile.motion *= 5f;
 
             //for (int j = 0; j < nextTile.edges.Count; j++)
             //{

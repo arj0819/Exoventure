@@ -6,6 +6,9 @@ public class GlobeTile
 {
     public static int GlobeTileCount = 0;
     public int id = GlobeTileCount;
+    public const int WATER = 0;
+    public const int LAND = 1;
+    public int terrainType;
     public static List<GlobeTile> AllTiles = new List<GlobeTile>();
 
     private static GK.ConvexHullCalculator ConvexHullCalculator = new GK.ConvexHullCalculator();
@@ -33,12 +36,13 @@ public class GlobeTile
     public float tectonicSheer = float.MinValue;
     public Vector3 motion;
     public float elevation;
-    public float moisture;
-    public float temperature;
+    public float surfaceMoisture;
+    public float surfaceTemperature;
+    public float surfaceAirPressure;
 
     public float shuffleValue = Random.value;
 
-    public GlobeTile(Vector3 delaunayPoint, List<Vector3> vertices, float scale, float phi, float theta)
+    public GlobeTile(Vector3 delaunayPoint, List<Vector3> vertices, float scale, float phi, float theta, float globeAverageTemperature, float temperatureVariability)
     {
         GlobeTileCount++;
 
@@ -49,7 +53,27 @@ public class GlobeTile
         this.scale = scale;
         this.phi = phi;
         this.theta = theta;
-        this.moisture = (((-0.5f * Mathf.Cos(6f * this.phi)) + 0.5f)) + Mathf.Cos(24f * this.theta) / 15f;
+        //this.moisture = (((-0.5f * Mathf.Cos(6f * this.phi)) + 0.5f)) + Mathf.Cos(24f * this.theta) / 15f;
+        this.surfaceMoisture = 1f;
+
+        // minimum temp is 233.5K, maximum is 313.5K
+        this.surfaceTemperature = (-1 * temperatureVariability * Mathf.Cos(2 * this.phi)) + globeAverageTemperature;
+        this.surfaceAirPressure = ((0.1f * Mathf.Cos(6f * this.phi)) + 1f);
+
+        /* Moisture Distribution 
+         * 
+         * All water tiles will replenish the moisture that leaves them.
+         * Land tiles will not replenish any moisture that leaves them.
+         * 
+         * Moisture moves only to the tiles with positive downwind Dot products.
+         * Percentage of moisture moving to each tile is a function of the Dot product between the tile's wind vector and the vectors pointing to adjacent tiles' delaunay points.
+         * 
+         * Calculate how much moisture would move to each tile, log a list per tile, then take the average of that list for each tile and call that the moisture for the tile.
+         * 
+         * 
+         * TRIVIALLY SIMULATE THE WATER CYCLE ON A PER TILE BASIS
+         * 
+         */
 
         for (int i = 0; i < this.meshVertices.Count; i++)
         {
@@ -92,5 +116,23 @@ public class GlobeTile
             tiles[i].shuffleValue = Random.value;
         }
         tiles.Sort((a, b) => a.shuffleValue.CompareTo(b.shuffleValue));
+    }
+
+    public void SetElevation(float elevation)
+    {
+        this.elevation = elevation;
+        if (elevation > 0f)
+        {
+            this.terrainType = LAND;
+        } else
+        {
+            this.terrainType = WATER;
+            SetMoisture(1f);
+        }
+    }
+
+    public void SetMoisture(float moisture)
+    {
+        this.surfaceMoisture = moisture;
     }
 }

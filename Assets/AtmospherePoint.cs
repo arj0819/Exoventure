@@ -24,6 +24,8 @@ public class AtmospherePoint
     private float plateRotationScalar = Random.value + 0.1f;
     public Color color;
 
+    public List<float> moistureIterationValues = new List<float>();
+
     public AtmospherePoint(GlobeTile globeTile)
     {
         AtmospherePointCount++;
@@ -36,15 +38,11 @@ public class AtmospherePoint
         this.phi = globeTile.phi;
         this.theta = globeTile.theta;
         // wind strength is the rate of change of moisture with respect to phi, which would be (0.5f * Mathf.Sin(6f * this.phi)) since moisture with respect to phi is (-0.5f * Mathf.Cos(6f * this.phi)) + 0.5f)
-        this.windDirectionScalar = Mathf.Abs(0.5f * Mathf.Sin(6f * this.phi)) + 1f; // (adding 0.5f to the scalar guarantees moisture will move around)
+        this.windDirectionScalar = Mathf.Abs(0.5f * Mathf.Sin(6f * this.phi)) + 1f; // (adding 1f to the scalar guarantees moisture will move around)
         this.windDirection = GetWindDirection();
         this.windDirection *= this.windDirectionScalar;
 
-    //this.moisture = (((-0.5f * Mathf.Cos(6f * this.phi)) + 0.5f)) + Mathf.Cos(24f * this.theta) / 15f;
-
-
-
-    AllPoints.Add(this);
+        AllPoints.Add(this);
     }
 
     private Vector3 GetWindDirection()
