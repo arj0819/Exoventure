@@ -11,6 +11,9 @@ public class AtmospherePoint
     public Vector3 delaunayPoint;
     public Vector3 point;
     public List<AtmospherePoint> neighborPoints = new List<AtmospherePoint>();
+    // SortedDictionary< % of moisture to transfer to the downwind neighbor, the downwind neighbor>
+    public SortedDictionary<float, AtmospherePoint> downwindNeighbors = new SortedDictionary<float, AtmospherePoint>();
+    public float totalDownwindFlow;
     public float scale;
     public float phi;
     public float theta;
@@ -24,9 +27,9 @@ public class AtmospherePoint
     private float plateRotationScalar = Random.value + 0.1f;
     public Color color;
 
-    public List<float> moistureIterationValues = new List<float>();
+    public float airMoisture;
 
-    public AtmospherePoint(GlobeTile globeTile)
+    public AtmospherePoint(GlobeTile globeTile, int airMoisture)
     {
         AtmospherePointCount++;
 
@@ -41,6 +44,7 @@ public class AtmospherePoint
         this.windDirectionScalar = Mathf.Abs(0.5f * Mathf.Sin(6f * this.phi)) + 1f; // (adding 1f to the scalar guarantees moisture will move around)
         this.windDirection = GetWindDirection();
         this.windDirection *= this.windDirectionScalar;
+        this.airMoisture = airMoisture;
 
         AllPoints.Add(this);
     }

@@ -52,6 +52,7 @@ public class Globe : MonoBehaviour
     public int oceanicRate = 70;
     public float globeAverageTemperature = 273.15f;
     public float temperatureVariability = 50f;
+    public int moistureIterations = 5;
     private List<UnitSpherePoint> tileGraphNodes;
     public static List<GlobeTile> globeTiles = new List<GlobeTile>();
     private List<TectonicPlate> globePlates = new List<TectonicPlate>();
@@ -272,7 +273,7 @@ public class Globe : MonoBehaviour
                         this.globeAverageTemperature,
                         this.temperatureVariability
                     );
-                    AtmospherePoint nextAtmospherePoint = new AtmospherePoint(nextGlobeTile);
+                    AtmospherePoint nextAtmospherePoint = new AtmospherePoint(nextGlobeTile, moistureIterations);
                     nextGlobeTile.atmospherePoint = nextAtmospherePoint;
                     globeTiles.Add(nextGlobeTile);
                     atmosphere.atmospherePoints.Add(nextAtmospherePoint);
@@ -330,6 +331,36 @@ public class Globe : MonoBehaviour
         }
         neighborEdgeDetermination.Stop();
         print("Neighbor and Edge Determination -> " + neighborEdgeDetermination.Elapsed);
+
+        // Determine each atmosphere point's downwind neighbors
+        Stopwatch atmosphereDownwindNeighborDetermination = Stopwatch.StartNew();
+        for (int i = 0; i < atmosphere.atmospherePoints.Count; i++)
+        {
+            AtmospherePoint currentAtmospherePoint = atmosphere.atmospherePoints[i];
+            SortedDictionary<float, AtmospherePoint> dotProductPointPair = new SortedDictionary<float, AtmospherePoint>();
+
+            for (int j = 0; j < currentAtmospherePoint.neighborPoints.Count; j++)
+            {
+                AtmospherePoint currentNeighborAtmospherePoint = currentAtmospherePoint.neighborPoints[j];
+                float delaunayWindDotProduct = Vector3.Dot(currentNeighborAtmospherePoint.delaunayPoint - currentAtmospherePoint.delaunayPoint, currentAtmospherePoint.windDirection);
+                if (delaunayWindDotProduct > 0)
+                {
+                    dotProductPointPair.Add(delaunayWindDotProduct, currentNeighborAtmospherePoint);
+                    currentAtmospherePoint.totalDownwindFlow += delaunayWindDotProduct;
+                }
+            }
+            foreach (KeyValuePair<float, AtmospherePoint> pair in dotProductPointPair)
+            {
+                currentAtmospherePoint.downwindNeighbors.Add(pair.Key / currentAtmospherePoint.totalDownwindFlow, pair.Value);
+            }
+        }
+        
+        atmosphereDownwindNeighborDetermination.Stop();
+        print("Atmosphere Downwind Neighbor Point Determination -> " + atmosphereDownwindNeighborDetermination.Elapsed);
+
+
+
+
 
         // Generate Tectonic Plate Seeds
         Stopwatch tectonicSeedGeneration = Stopwatch.StartNew();
@@ -679,10 +710,6 @@ public class Globe : MonoBehaviour
         elevationDetermination.Stop();
         print("Elevation Determination -> " + elevationDetermination.Elapsed);
 
-        globeTiles.Sort((a, b) => a.elevation.CompareTo(b.elevation));
-        print(globeTiles[0].elevation);
-        print(globeTiles[globeTiles.Count - 1].elevation);
-
         // Normalize elevation after all interpolation is done
         Stopwatch elevationNormalization = Stopwatch.StartNew();
         for (int i = 0; i < globeTiles.Count; i++)
@@ -692,105 +719,6 @@ public class Globe : MonoBehaviour
         }
         elevationNormalization.Stop();
         print("Elevation Normalization -> " + elevationNormalization.Elapsed);
-
-        globeTiles.Sort((a, b) => a.elevation.CompareTo(b.elevation));
-        print(globeTiles[0].elevation);
-        print(globeTiles[globeTiles.Count - 1].elevation);
-
-
-        // Use an iterative process to distribute moisture across the atmosphere, assign to respective tiles
-        Stopwatch moistureDistribution = Stopwatch.StartNew();
-        // First Attempt (failure)
-        //List<List<MoistureContributor>> allMoistureContributorLists = new List<List<MoistureContributor>>();
-        //for (int i = 0; i < atmosphere.atmospherePoints.Count; i++)
-        //{
-        //    AtmospherePoint currentAtmospherePoint = atmosphere.atmospherePoints[i];
-        //    //if (currentAtmospherePoint.globeTile.terrainType == GlobeTile.WATER)
-        //    //{
-        //    //    continue;
-        //    //}
-        //    List<MoistureContributor> moistureContributors = new List<MoistureContributor>();
-        //    List<float> delaunayWindDotProducts = new List<float>();
-        //    List<float> windDirectionDotProducts = new List<float>();
-        //    int possibleNumberOfContributors = 0;
-        //    for (int j = 0; j < currentAtmospherePoint.neighborPoints.Count; j++)
-        //    {
-        //        AtmospherePoint currentNeighborAtmospherePoint = currentAtmospherePoint.neighborPoints[j];
-        //        float delaunayWindDotProduct = Vector3.Dot(currentNeighborAtmospherePoint.delaunayPoint - currentAtmospherePoint.delaunayPoint, currentAtmospherePoint.windDirection);
-        //        float windDirectionDotProduct = Vector3.Dot(currentAtmospherePoint.windDirection, currentNeighborAtmospherePoint.windDirection);
-        //        float relativeElevation = currentAtmospherePoint.globeTile.elevation - currentNeighborAtmospherePoint.globeTile.elevation;
-        //        if (delaunayWindDotProduct < 0)
-        //        {
-        //            possibleNumberOfContributors++;
-        //            if (windDirectionDotProduct > 0)
-        //            {
-        //                moistureContributors.Add(
-        //                    new MoistureContributor(
-        //                        currentAtmospherePoint,
-        //                        currentNeighborAtmospherePoint,
-        //                        possibleNumberOfContributors,
-        //                        Mathf.Abs(delaunayWindDotProduct),
-        //                        Mathf.Abs(windDirectionDotProduct),
-        //                        relativeElevation < 0 ? Mathf.Abs(1 - relativeElevation) : Mathf.Abs(relativeElevation),
-        //                        currentNeighborAtmospherePoint.globeTile.moisture
-        //                    )
-        //                );
-        //            }
-        //        }
-        //    }
-        //    for (int j = 0; j < moistureContributors.Count; j++)
-        //    {
-        //        moistureContributors[j].possibleNumberOfContributors = possibleNumberOfContributors;
-        //    }
-        //    allMoistureContributorLists.Add(moistureContributors);
-        //}
-
-        //// passes
-        //for (int t = 0; t < 1; t++)
-        //{
-        //    for (int j = 0; j < allMoistureContributorLists.Count; j++)
-        //    {
-        //        List<MoistureContributor> currentMoistureContributorList = allMoistureContributorLists[j];
-        //        float moistureContributed = 0f;
-        //        for (int i = 0; i < currentMoistureContributorList.Count; i++)
-        //        {
-        //            MoistureContributor currentMoistureContributor = currentMoistureContributorList[i];
-        //            if (currentMoistureContributor.contributorAtmospherePoint.globeTile.terrainType == GlobeTile.LAND)
-        //            {
-        //                float contribution = currentMoistureContributor.relativeElevation * currentMoistureContributor.delaunayWindDotProduct * currentMoistureContributor.contributorAtmospherePoint.globeTile.moisture * currentMoistureContributor.windDirectionDotProduct;
-        //                moistureContributed += contribution;
-        //                currentMoistureContributor.contributorAtmospherePoint.globeTile.moisture -= contribution;
-        //            }
-        //            else
-        //            {
-        //                float contribution = currentMoistureContributor.delaunayWindDotProduct * currentMoistureContributor.contributorAtmospherePoint.globeTile.moisture * currentMoistureContributor.windDirectionDotProduct;
-        //                moistureContributed += contribution;
-        //                currentMoistureContributor.contributorAtmospherePoint.globeTile.moisture -= contribution;
-        //            }
-        //        }
-
-        //        if (currentMoistureContributorList.Count > 0)
-        //        {
-        //            if (currentMoistureContributorList[0].possibleNumberOfContributors > 0)
-        //            {
-        //                moistureContributed /= currentMoistureContributorList[0].possibleNumberOfContributors;
-        //            }
-        //            currentMoistureContributorList[0].recipientPoint.globeTile.moisture += moistureContributed;
-        //        }
-        //    }
-        //}
-
-        //List<GlobeTile> landTilesSortedByMoisture = new List<GlobeTile>(globeTiles).Where(tile => tile.terrainType == GlobeTile.LAND).ToList();
-        //landTilesSortedByMoisture.Sort((a, b) => b.moisture.CompareTo(a.moisture));
-        //float greatestMoisture = landTilesSortedByMoisture[0].moisture;
-        //float leastMoisture = landTilesSortedByMoisture[landTilesSortedByMoisture.Count - 1].moisture;
-        //for (int i = 0; i < globeTiles.Count; i++)
-        //{
-        //    GlobeTile currentPlateTile = globeTiles[i];
-        //    currentPlateTile.moisture = (currentPlateTile.moisture - leastMoisture) / (greatestMoisture - leastMoisture);
-        //}
-
-        // Second Attempt
 
         // Update Temperature and Pressure of each tile based on the elevation of the tile
         for (int i = 0; i < globeTiles.Count; i++)
@@ -804,6 +732,155 @@ public class Globe : MonoBehaviour
         }
 
 
+        // Use an iterative process to distribute moisture across the atmosphere, assign to respective tiles
+        Stopwatch moistureDistribution = Stopwatch.StartNew();
+
+        /* Moisture Distribution Iteration
+         * 
+         * All GlobeTiles start with 0.5f surfaceMoisture.
+         * 
+         * --Evaporation--
+         * 
+         * Evaporation depends on the surface temp and pressure of the GlobeTile. This will determine a value (evaporationPercent).
+         * The amount of moisture evaporating from each tile (evaporationAmount) is equal to the surfaceMoisture * evaporationPercent. 
+         * evaporationPercent is in [0.0025,1].
+         * surfaceMoisture is in [0,1].
+         * 
+         * evaporationAmount = surfaceMoisture * evaporationPercent;
+         * evaporationAmount is in [0,1].
+         * 
+         * This evaporationAmount goes into the corresponding AtmospherePoint's airMoisture. We update the surfaceMoisture by subtracting the evaporationAmount.
+         * airMoisture is in [iterations, infinity).
+         * 
+         * Effect of Temperature on Evaporation
+         * There is no evaporation occuring if the GlobeTile surfaceTemperature is below 273.15K.
+         * There is 100% evaporation occuring if the GlobeTile surfaceTemperature is at or above 373.15K
+         * 
+         * temperatureImpact = (surfaceTemperature - 273.15) / 100;
+         * temperatureImpact = temperatureImpact < 0.05f ? 0.05f : temperatureImpact;
+         * temperatureImpact is in [0.05, 1]
+         * 
+         * Effect of Pressure on Evaporation
+         * surfaceAirPressure is in [0.24, 1.1]
+         * pressureImpact = (1 / 0.86f) * surfaceAirPressure;
+         * pressureImpact = pressureImpact < 0.05f ? 0.05f : pressureImpact;
+         * pressureImpact is in [0.05, 1]
+         * !! - IMPORTANT - !! - The 0.86f is the difference between max and min possible pressure. This will change if we alter the possible pressure range.
+         * 
+         * evaporationPercent = temperatureImpact * pressureImpact
+         * evaporationPercent is in [0.0025, 1]
+         * 
+         * --Permeation--
+         * 
+         * 80% of the airMoisture amount is incremented to the AtmospherePoint's downwind neighbors based on a weighted percentage. The AtmospherePoint's airMoisture is then 20% of where it started.
+         * 
+         * --Condensation--
+         * 
+         * Condensation depends on the surface temp and pressure of the AtmospherePoint's GlobTile. This will determine a value (condensationPercent).
+         * Lower surfaceTemperature means HIGHER condensationPercent. Lower surfaceAirPressure means HIGHER condensationPercent. condensationPercent is in [0,1].
+         * 
+         * The surfaceMoistureCapacity of the GlobeTile is equal to 1 - surfaceMoisture. 
+         * surfaceMoistureCapacity = 1 - surfaceMoisture;
+         * 
+         * The condensationAmount is equal to the surfaceMoistureCapacity * condensationPercent;
+         * condensationAmount is in [0,1].
+         * 
+         * Effect of Temperature on Condensation
+         * temperatureImpact = ((surfaceTemperature - 273.15) / 100) * -1;
+         * temperatureImpact = temperatureImpact > -0.05f ? -0.05f : temperatureImpact;
+         * temperatureImpact is in [-1, -0.05]
+         * 
+         * Effect of Pressure on Condensation
+         * surfaceAirPressure is in [0.24, 1.1]
+         * pressureImpact = ((1 / 0.86f) * surfaceAirPressure) * -1;
+         * pressureImpact = pressureImpact > -0.05f ? -0.05f : pressureImpact;
+         * pressureImpact is in [-1, -0.05]
+         * !! - IMPORTANT - !! - The 0.86f is the difference between max and min possible pressure. This will change if we alter the possible pressure range.
+         * 
+         * condensationPercent = temperatureImpact * pressureImpact
+         * condensationPercent is in [0.0025, 1]
+         * 
+         * --Percipitation--
+         * 
+         * We simply add the condensationAmount to the GlobeTile's surfaceMoisture. 
+         * 
+         * surfaceMoisture += condensationAmount;
+         * 
+         * Then, we subtract the condensationAmount from the AtmospherePoint's airMoisture
+         * 
+         * airMoisture -= condensationAmount.
+         * 
+         * --End of Iteration--
+         * 
+         * This is the end of the iteration, process starts again from the beginning.
+         * 
+         */
+
+        for (int t = 0; t < 2; t++)
+        {
+            // Evaporation
+            for (int i = 0; i < globeTiles.Count; i++)
+            {
+                GlobeTile currentGlobeTile = globeTiles[i];
+                float temperatureImpact = (currentGlobeTile.surfaceTemperature - 273.15f) / 100f;
+                temperatureImpact = temperatureImpact < 0.05f ? 0.05f : temperatureImpact;
+                float pressureImpact = (1f / 0.86f) * currentGlobeTile.surfaceAirPressure;
+                pressureImpact = pressureImpact < 0.05f ? 0.05f : pressureImpact;
+                float surfaceEvaporationCapacity = 1f - currentGlobeTile.surfaceMoisture;
+                float evaporationPercent = ((2f * temperatureImpact) + pressureImpact + surfaceEvaporationCapacity) / 4f;
+
+                float evaporationAmount = currentGlobeTile.surfaceMoisture * evaporationPercent;
+                currentGlobeTile.atmospherePoint.airMoisture += evaporationAmount;
+                currentGlobeTile.surfaceMoisture -= evaporationAmount;
+            }
+
+            // Permeation
+            for (int i = 0; i < globeTiles.Count; i++)
+            {
+                GlobeTile currentGlobeTile = globeTiles[i];
+                AtmospherePoint currentAtmospherePoint = currentGlobeTile.atmospherePoint;
+                float permeatedMoistureAmount = currentAtmospherePoint.airMoisture * 1f; // PAY ATTENTION.
+
+                // Split among all the downwind neighbors
+                foreach (KeyValuePair<float, AtmospherePoint> neighbor in currentAtmospherePoint.downwindNeighbors)
+                {
+                    neighbor.Value.airMoisture += permeatedMoistureAmount * neighbor.Key;
+                }
+
+                // Only the most downwind neighbor
+                //currentAtmospherePoint.downwindNeighbors.Reverse();
+                //AtmospherePoint mostDownwindNeighbor = currentAtmospherePoint.downwindNeighbors.Values.ToList()[0];
+                //mostDownwindNeighbor.airMoisture += permeatedMoistureAmount;
+
+
+                currentAtmospherePoint.airMoisture -= permeatedMoistureAmount;
+            }
+
+            // Condensation and Percipitation
+            for (int i = 0; i < globeTiles.Count; i++)
+            {
+                GlobeTile currentGlobeTile = globeTiles[i];
+                float temperatureImpact = ((currentGlobeTile.surfaceTemperature - 273.15f) / 100f) * 1f;
+                temperatureImpact = temperatureImpact < 0.05f ? 0.05f : temperatureImpact;
+                float pressureImpact = ((1f / 0.86f) * currentGlobeTile.surfaceAirPressure) * 1f;
+                pressureImpact = pressureImpact < 0.05f ? 0.05f : pressureImpact;
+                float condensationPercent = (temperatureImpact + (1f - pressureImpact)) / 2f;
+                float surfaceMoistureCapacity = 1f - currentGlobeTile.surfaceMoisture;
+
+                float condensationAmount = surfaceMoistureCapacity * condensationPercent;
+                currentGlobeTile.surfaceMoisture += condensationAmount;
+                currentGlobeTile.atmospherePoint.airMoisture -= condensationAmount;
+            }
+        }
+
+
+
+
+        //atmosphere.atmospherePoints[100].globeTile.surfaceMoisture = 1f;
+        //foreach (KeyValuePair<float, AtmospherePoint> neighbor in atmosphere.atmospherePoints[100].downwindNeighbors)
+        //{
+        //    neighbor.Value.globeTile.surfaceMoisture += neighbor.Key;
+        //}
 
 
         moistureDistribution.Stop();
@@ -902,68 +979,111 @@ public class Globe : MonoBehaviour
             }
         }
 
-        // color for moisture
+        // Surface Temperature
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
-            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = (tectonicPlates[i].plateType == TectonicPlate.CONTINENTAL ? Globe.GrasslandMaterial : Globe.SnowMaterial);
-            //print(tectonicPlates[i].plateTiles.Count);
-            //print(tectonicPlates[i].perimeterTiles.Count);
-            //print(tectonicPlates[i].perimeterTileNeighbors.Count);
-            //print(tectonicPlates[i].perimeterEdges.Count);
-            //tectonicPlates[i].seed.terrain.GetComponent<MeshRenderer>().material = Globe.GrasslandMaterial;
-            //tectonicPlates[i].plateTiles.Sort((a, b) => a.tilesAwayFromPlatePerimeter.CompareTo(b.tilesAwayFromPlatePerimeter));
             for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
             {
-                GlobeTile currentPlateTile = tectonicPlates[i].plateTiles[j];
-                if (currentPlateTile.terrainType == GlobeTile.WATER)
-                {
-                    continue;
-                }
-                tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
-                if (currentPlateTile.surfaceTemperature <= 313.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 305.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT305_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 297.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT297_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 289.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT289_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 281.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT281_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 273.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT273_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 265.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT265_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 257.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT257_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 249.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT249_5KMaterial;
-                }
-                if (currentPlateTile.surfaceTemperature <= 241.5f)
-                {
-                    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT241_5KMaterial;
-                }
+                //GlobeTile currentPlateTile = tectonicPlates[i].plateTiles[j];
+                //if (currentPlateTile.terrainType == GlobeTile.WATER)
+                //{
+                //    continue;
+                //}
+                //tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
+                //if (currentPlateTile.surfaceTemperature <= 313.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 305.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT305_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 297.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT297_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 289.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT289_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 281.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT281_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 273.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT273_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 265.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT265_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 257.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT257_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 249.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT249_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceTemperature <= 241.5f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT241_5KMaterial;
+                //}
             }
         }
 
-        // Debugging Tectonic Plates
+        // Air Pressure
+        for (int i = 0; i < tectonicPlates.Count; i++)
+        {
+            for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
+            {
+                //GlobeTile currentPlateTile = tectonicPlates[i].plateTiles[j];
+                //if (currentPlateTile.terrainType == GlobeTile.WATER)
+                //{
+                //    continue;
+                //}
+                //tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
+                //if (currentPlateTile.surfaceAirPressure <= 0.95f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT305_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.88f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT297_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.81f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT289_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.74f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT281_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.67f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT273_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.6f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT265_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.53f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT257_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.46f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT249_5KMaterial;
+                //}
+                //if (currentPlateTile.surfaceAirPressure <= 0.39f)
+                //{
+                //    tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT241_5KMaterial;
+                //}
+            }
+        }
+
+        // Moisture
         for (int i = 0; i < tectonicPlates.Count; i++)
         {
             for (int j = 0; j < tectonicPlates[i].plateTiles.Count; j++)
@@ -974,39 +1094,39 @@ public class Globe : MonoBehaviour
                     continue;
                 }
                 tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT313_5KMaterial;
-                if (currentPlateTile.surfaceAirPressure <= 0.95f)
+                if (currentPlateTile.surfaceMoisture <= 0.9f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT305_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.88f)
+                if (currentPlateTile.surfaceMoisture <= 0.8f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT297_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.81f)
+                if (currentPlateTile.surfaceMoisture <= 0.7f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT289_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.74f)
+                if (currentPlateTile.surfaceMoisture <= 0.6f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT281_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.67f)
+                if (currentPlateTile.surfaceMoisture <= 0.5f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT273_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.6f)
+                if (currentPlateTile.surfaceMoisture <= 0.4f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT265_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.53f)
+                if (currentPlateTile.surfaceMoisture <= 0.3f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT257_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.46f)
+                if (currentPlateTile.surfaceMoisture <= 0.2f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT249_5KMaterial;
                 }
-                if (currentPlateTile.surfaceAirPressure <= 0.39f)
+                if (currentPlateTile.surfaceMoisture <= 0.1f)
                 {
                     tectonicPlates[i].plateTiles[j].terrain.GetComponent<MeshRenderer>().material = Globe.LT241_5KMaterial;
                 }
