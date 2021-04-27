@@ -36,7 +36,7 @@ public class GlobeTile
     public float tectonicSheer = float.MinValue;
     public Vector3 motion;
     public float elevation;
-    public float surfaceMoisture = 1f;
+    public float surfaceMoisture;
     public float surfaceTemperature;
     public float surfaceAirPressure;
     public float evaporationRate;
@@ -59,6 +59,8 @@ public class GlobeTile
         // minimum temp is 233.5K, maximum is 313.5K
         this.surfaceTemperature = (-1 * temperatureVariability * Mathf.Cos(2 * this.phi)) + globeAverageTemperature;
         this.surfaceAirPressure = ((0.1f * Mathf.Cos(6f * this.phi)) + 1f);
+        // moisture is set after elevation update due to tectonic interaction
+        //this.surfaceMoisture = this.phi <= Mathf.PI / 2 ? this.phi / (Mathf.PI / 2) : (Mathf.PI - this.phi) / (Mathf.PI / 2);
 
 
         for (int i = 0; i < this.meshVertices.Count; i++)
@@ -80,6 +82,9 @@ public class GlobeTile
         terrain = GameObject.CreatePrimitive(PrimitiveType.Quad);
         GameObject globe = GameObject.Find("Globe");
         terrain.transform.parent = globe.transform;
+        terrain.AddComponent<MeshCollider>().isTrigger = true;
+        terrain.GetComponent<MeshCollider>().sharedMesh = this.mesh;
+        terrain.name = "GlobeTile_" + this.id;
 
         //terrain.GetComponent<MeshRenderer>().material = new Material(GameObject.Find("WaterMaterial").GetComponent<MeshRenderer>().material);
         //terrain.GetComponent<MeshRenderer>().material = new Material(GameObject.Find("DesertMaterial").GetComponent<MeshRenderer>().material);
@@ -110,7 +115,6 @@ public class GlobeTile
         if (elevation > 0f)
         {
             this.terrainType = LAND;
-            SetMoisture(0f);
         } else
         {
             this.terrainType = WATER;

@@ -29,7 +29,7 @@ public class AtmospherePoint
 
     public float airMoisture;
 
-    public AtmospherePoint(GlobeTile globeTile, int airMoisture)
+    public AtmospherePoint(GlobeTile globeTile)
     {
         AtmospherePointCount++;
 
@@ -44,7 +44,7 @@ public class AtmospherePoint
         this.windDirectionScalar = Mathf.Abs(0.5f * Mathf.Sin(6f * this.phi)) + 1f; // (adding 1f to the scalar guarantees moisture will move around)
         this.windDirection = GetWindDirection();
         this.windDirection *= this.windDirectionScalar;
-        this.airMoisture = airMoisture;
+        this.airMoisture = 0.5f;
 
         AllPoints.Add(this);
     }
@@ -64,7 +64,7 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(windDirection, this.rotationAxis);
             windDirection += (verticalDirection * latitudinalTurbulence);
-
+            windDirection = windDirection.normalized * ((Mathf.PI / 6) - this.phi);
             this.color = new Color(255f, 0f, 0f);
         } else if (this.phi <= Mathf.PI / 3)
         {
@@ -75,6 +75,7 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(this.rotationAxis, windDirection);
             windDirection -= (verticalDirection * latitudinalTurbulence);
+            windDirection = windDirection.normalized * (this.phi - (Mathf.PI / 6));
             this.color = new Color(0f, 0f, 255f);
         }
         else if (this.phi <= Mathf.PI / 2)
@@ -86,6 +87,7 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(windDirection, this.rotationAxis);
             windDirection += (verticalDirection * latitudinalTurbulence);
+            windDirection = windDirection.normalized * ((Mathf.PI / 2) - this.phi);
             this.color = new Color(255f, 0f, 0f);
         }
         else if (this.phi <= (Mathf.PI * 2) / 3)
@@ -97,6 +99,7 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(windDirection, this.rotationAxis);
             windDirection -= (verticalDirection * latitudinalTurbulence);
+            windDirection = windDirection.normalized * (this.phi - (Mathf.PI / 2));
             this.color = new Color(255f, 0f, 0f);
         }
         else if (this.phi <= (Mathf.PI * 5) / 6)
@@ -108,6 +111,7 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(this.rotationAxis, windDirection);
             windDirection += (verticalDirection * latitudinalTurbulence);
+            windDirection = windDirection.normalized * (((Mathf.PI * 5) / 6) - this.phi);
             this.color = new Color(0f, 0f, 255f);
         }
         else if (this.phi <= Mathf.PI)
@@ -119,9 +123,10 @@ public class AtmospherePoint
             windDirection *= longitudinalTurbulence;
             Vector3 verticalDirection = Vector3.Cross(windDirection, this.rotationAxis);
             windDirection -= (verticalDirection * latitudinalTurbulence);
+            windDirection = windDirection.normalized * (this.phi - ((Mathf.PI * 5) / 6));
             this.color = new Color(255f, 0f, 0f);
         }
 
-        return windDirection.normalized;
+        return windDirection;
     }
 }

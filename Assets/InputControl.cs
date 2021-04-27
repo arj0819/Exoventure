@@ -5,6 +5,7 @@ using UnityEngine;
 public class InputControl : MonoBehaviour
 {
     public GameObject cameraOrbit;
+    public GameObject clickedGameObject;
 
     public float rotateSpeed = 8f;
 
@@ -19,6 +20,35 @@ public class InputControl : MonoBehaviour
                 v = 0;
 
             cameraOrbit.transform.eulerAngles = new Vector3(cameraOrbit.transform.eulerAngles.x, cameraOrbit.transform.eulerAngles.y + h, cameraOrbit.transform.eulerAngles.z + v);
+        }
+
+        if (Input.GetMouseButtonUp(0))
+        {
+            RaycastHit hitInfo = new RaycastHit();
+            bool hit = Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hitInfo);
+            if (hit)
+            {
+                Debug.Log("Hit " + hitInfo.transform.gameObject.name);
+                if (hitInfo.transform.gameObject)
+                {
+                    Debug.Log("It's working!");
+                    Debug.Log(hitInfo.transform.gameObject);
+                    this.clickedGameObject = hitInfo.transform.gameObject;
+                    GlobeTile clickedTile = GlobeTile.AllTiles.Find(tile => tile.terrain == this.clickedGameObject);
+                    if (clickedTile != null)
+                    {
+                        print(clickedTile.surfaceMoisture);
+                    }
+                }
+                else
+                {
+                    Debug.Log("nopz");
+                }
+            }
+            else
+            {
+                Debug.Log("No hit");
+            }
         }
 
         float scrollFactor = Input.GetAxis("Mouse ScrollWheel");
