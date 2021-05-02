@@ -664,15 +664,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22d7c8c60c9872f4fa448a28fb6a1dc6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numberOfTiles: 3000
+  numberOfTiles: 2000
   scale: 60
   jitter: 50
-  numberOfTectonicPlates: 20
-  tectonicPlateSmoothness: 15
-  oceanicRate: 65
+  numberOfTectonicPlates: 10
+  tectonicPlateSmoothness: 100
+  tectonicActivity: 5
+  oceanicRate: 70
   globeAverageTemperature: 280.15
   temperatureVariability: 45
-  moistureIterations: 20
+  moistureIterations: 2
+  period: 1
 --- !u!4 &983366572
 Transform:
   m_ObjectHideFlags: 0

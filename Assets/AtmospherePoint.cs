@@ -28,6 +28,7 @@ public class AtmospherePoint
     public Color color;
 
     public float airMoisture;
+    public MoistureManager moistureManager;
 
     public AtmospherePoint(GlobeTile globeTile)
     {
@@ -44,7 +45,7 @@ public class AtmospherePoint
         this.windDirectionScalar = Mathf.Abs(0.5f * Mathf.Sin(6f * this.phi)) + 1f; // (adding 1f to the scalar guarantees moisture will move around)
         this.windDirection = GetWindDirection();
         this.windDirection *= this.windDirectionScalar;
-        this.airMoisture = 0.5f;
+        this.airMoisture = 1f;
 
         AllPoints.Add(this);
     }
@@ -127,6 +128,6 @@ public class AtmospherePoint
             this.color = new Color(255f, 0f, 0f);
         }
 
-        return windDirection;
+        return windDirection *= 1f;
     }
 }

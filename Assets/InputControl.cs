@@ -28,26 +28,20 @@ public class InputControl : MonoBehaviour
             bool hit = Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hitInfo);
             if (hit)
             {
-                Debug.Log("Hit " + hitInfo.transform.gameObject.name);
+                //Debug.Log("Hit " + hitInfo.transform.gameObject.name);
                 if (hitInfo.transform.gameObject)
                 {
-                    Debug.Log("It's working!");
                     Debug.Log(hitInfo.transform.gameObject);
                     this.clickedGameObject = hitInfo.transform.gameObject;
                     GlobeTile clickedTile = GlobeTile.AllTiles.Find(tile => tile.terrain == this.clickedGameObject);
                     if (clickedTile != null)
                     {
-                        print(clickedTile.surfaceMoisture);
+                        print("Surface Moisture --> " + clickedTile.surfaceMoisture);
+                        print("Air Moisture ------> " + clickedTile.atmospherePoint.airMoisture);
+                        print("Elevation ---------> " + clickedTile.elevation);
+                        print("Tectonic Pressure -> " + clickedTile.tectonicPressure);
                     }
                 }
-                else
-                {
-                    Debug.Log("nopz");
-                }
-            }
-            else
-            {
-                Debug.Log("No hit");
             }
         }
 
