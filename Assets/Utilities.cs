@@ -57,4 +57,12 @@ public static class Utilities
                a4 * Mathf.Exp(-1f * Mathf.Pow((phi - b4) / c4, 2)) +
                a5 * Mathf.Exp(-1f * Mathf.Pow((phi - b5) / c5, 2));
     }
+
+    public static float NextRandomNormal(float mean, float stdDev) {
+        float u1 = 1.0f - Random.value;
+        float u2 = 1.0f - Random.value;
+        float randomStandardNormal = Mathf.Sqrt(-2.0f * Mathf.Log(u1)) * Mathf.Sin(2.0f * Mathf.PI * u2);
+        return mean + (stdDev * randomStandardNormal);
+        
+    }
 }

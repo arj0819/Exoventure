@@ -667,9 +667,9 @@ MonoBehaviour:
   numberOfTiles: 2000
   scale: 60
   jitter: 50
-  numberOfTectonicPlates: 10
-  tectonicPlateSmoothness: 100
-  tectonicActivity: 5
+  numberOfTectonicPlates: 20
+  tectonicPlateSmoothness: 25
+  tectonicActivity: 1
   oceanicRate: 70
   globeAverageTemperature: 280.15
   temperatureVariability: 45

@@ -385,10 +385,12 @@ public class Globe : MonoBehaviour
         print("Tectonic Seed Generation -> " + tectonicSeedGeneration.Elapsed);
 
         // Build Tectonic Plates
+        int numberOfOceanDensityPlates = Mathf.FloorToInt(numberOfTectonicPlates * (oceanicRate / 100f));
         List<TectonicPlate> tectonicPlates = new List<TectonicPlate>();
         for (int i = 0; i < tectonicPlateSeeds.Count; i++)
         {
-            tectonicPlates.Add(new TectonicPlate(tectonicPlateSeeds[i], tectonicPlateSmoothness, tectonicActivity, Globe.Radius));
+            tectonicPlates.Add(new TectonicPlate(tectonicPlateSeeds[i], tectonicPlateSmoothness, tectonicActivity, Globe.Radius, numberOfOceanDensityPlates > 0));
+            numberOfOceanDensityPlates--;
         }
 
         // Working First Attempt (Fairly slow)
@@ -456,7 +458,7 @@ public class Globe : MonoBehaviour
                 GlobeTile adjacentPlateTile;
                 float currentPerimeterTileTotalTectonicPressure = 0f;
                 float currentPerimeterTileTotalTectonicSheer = 0f;
-                int totalPerimiterEdgeCount = 0;
+                float totalPerimiterEdgeCount = 0f;
                 for (int k = 0; k < currentPerimeterTile.edges.Count; k++)
                 {
                     GlobeTileEdge currentPerimeterTileEdge = currentPerimeterTile.edges[k];
@@ -476,8 +478,15 @@ public class Globe : MonoBehaviour
                     }
                 }
                 // For each perimeter tile, the tectonic pressure and sheer are sum among all the plate perimeter edges on that tile
-                currentPerimeterTile.tectonicPressure = currentPerimeterTileTotalTectonicPressure / totalPerimiterEdgeCount;
-                currentPerimeterTile.tectonicSheer = currentPerimeterTileTotalTectonicSheer / totalPerimiterEdgeCount;
+                //currentPerimeterTile.tectonicPressure = currentPerimeterTileTotalTectonicPressure;
+                //currentPerimeterTile.tectonicSheer = currentPerimeterTileTotalTectonicSheer;
+                if (totalPerimiterEdgeCount == 1f) {
+                    totalPerimiterEdgeCount = 1.5f;
+                }
+                float averagePerimeterTileTectonicPressure = currentPerimeterTileTotalTectonicPressure / totalPerimiterEdgeCount;
+                float averagePerimeterTileTectonicSheer = currentPerimeterTileTotalTectonicSheer / totalPerimiterEdgeCount;
+                currentPerimeterTile.tectonicPressure = averagePerimeterTileTectonicPressure;
+                currentPerimeterTile.tectonicSheer = averagePerimeterTileTectonicSheer;
 
             }
 
@@ -510,6 +519,11 @@ public class Globe : MonoBehaviour
         tectonicForceDetermination.Stop();
         print("Tectonic Force Determination -> " + tectonicForceDetermination.Elapsed);
 
+        string exportData = "";
+        for (int i = 0; i < globeTiles.Count; i++) {
+            exportData += globeTiles[i].elevation + ", ";
+        }
+        print(exportData);
 
         // Determine the elevations for the tiles of each tectonic plate
         Stopwatch elevationDetermination = Stopwatch.StartNew();
@@ -541,118 +555,57 @@ public class Globe : MonoBehaviour
                         float densityDifference = currentPerimeterTile.tectonicPlate.density - adjacentPlateTile.tectonicPlate.density; // [MIN_DENSITY - MAX_DENSITY, MAX_DENSITY - MIN_DENSITY]
                         float activityTypeThreshold = (TectonicPlate.MAX_DENSITY - TectonicPlate.MIN_DENSITY) * 0.3333333f; // Three activity types, split the plate density domain into 3 equal parts
 
-                        if (currentPerimeterTile.tectonicPressure > 0f) {
-                            // CONVERGENT BOUNDARY
-                            if (densityDifference >= 0f) {
-                                if (densityDifference <= activityTypeThreshold) { // BIG ELEVATION INCREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 1f; // 1f is BIG INCREASE
-                                } else if (densityDifference <= (2f * activityTypeThreshold)) { // NO ELEVATION CHANGE
-                                    currentPerimeterTile.elevation += 0f;
-                                } else { // BIG ELEVATION DECREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * -0.6667f; // -1f is BIG DECREASE
+                        //currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.02f;
+
+                        if (currentPerimeterTile.tectonicPlate.isOceanicDensity) {
+                            if (adjacentPlateTile.tectonicPlate.isOceanicDensity) {
+                                // OCEANIC to OCEANIC
+                                if (currentPerimeterTile.tectonicPressure > 0f) {
+                                    // CONVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * 0.15f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.COLLIDING;
+                                } else {
+                                    // DIVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * -0.1f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.DIVERGING;
                                 }
-                            } else if (densityDifference < 0f) {
-                                if (densityDifference >= (-1f * activityTypeThreshold)) { // BIG ELEVATION INCREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 1f; // 1f is BIG INCREASE
-                                } else if (densityDifference >= (-2f * activityTypeThreshold)) { // MODERATE ELEVATION INCREASE 
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.6667f; // 0.6667f is MODERATE INCREASE
-                                } else { // BIG ELEVATION INCREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 1f; // 1f is BIG INCREASE
+                            } else {
+                                // OCEANIC to CONTINENTAL
+                                if (currentPerimeterTile.tectonicPressure > 0f) {
+                                    // CONVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * -0.1f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.SUBDUCTING_OCEAN;
+                                } else {
+                                    // DIVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * -0.25f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.DIVERGING;
                                 }
                             }
                         } else {
-                            // DIVERGENT BOUNDARY
-                            if (densityDifference >= 0f) {
-                                if (densityDifference <= activityTypeThreshold) { // SUBTLE ELEVATION DECREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.3333f; // -0.3333f is SUBTLE DECREASE
-                                } else if (densityDifference <= (2f * activityTypeThreshold)) { // SUBTLE ELEVATION INCREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.3333f; // 0.3333f is SUBTLE INCREASE
-                                } else { // SUBTLE ELEVATION INCREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.3333f; // 0.3333f is SUBTLE INCREASE
+                            if (adjacentPlateTile.tectonicPlate.isOceanicDensity) {
+                                // CONTINENTAL to OCEANIC
+                                if (currentPerimeterTile.tectonicPressure > 0f) {
+                                    // CONVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * 0.75f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.SUBDUCTING_LAND;
+                                } else {
+                                    // DIVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * 0.1f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.DIVERGING;
                                 }
-                            } else if (densityDifference < 0f) {
-                                if (densityDifference >= (-1f * activityTypeThreshold)) { // SUBTLE ELEVATION DECREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.3333f; // -0.3333f is SUBTLE DECREASE
-                                } else if (densityDifference >= (-2f * activityTypeThreshold)) { // SUBTLE ELEVATION DECREASE 
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.3333f; // -0.3333f is SUBTLE DECREASE
-                                } else { // MODERATE ELEVATION DECREASE
-                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicActvity * currentPerimeterTile.tectonicPressure * 0.6667f; // -0.6667f is MODERATE DECREASE
+                            } else {
+                                // CONTINENTAL to CONTINENTAL
+                                if (currentPerimeterTile.tectonicPressure > 0f) {
+                                    // CONVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * 1f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.COLLIDING;
+                                } else {
+                                    // DIVERGENT
+                                    currentPerimeterTile.elevation += TectonicPlate.CrustThickness * TectonicPlate.TectonicImpact * currentPerimeterTile.tectonicPressure * -0.1f;
+                                    currentPerimeterTile.tectonicTag = TectonicTag.DIVERGING;
                                 }
                             }
                         }
-
-                        //if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
-                        //{
-                        //    if (currentPerimeterTile.tectonicPressure > 0)
-                        //    {
-                        //        // (current plate) CONTINENTAL --> | <-- CONTINENTAL (adjacent plate)
-                        //        float alterElevation = Random.value;
-                        //        //if (alterElevation > 0.4f)
-                        //        //{
-                        //        //    currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 1.4f));
-                        //        //} else {
-                        //        //    currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 0.7f));
-                        //        //}
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 1.4f));
-                        //    } else {
-                        //        // (current plate) CONTINENTAL <-- | --> CONTINENTAL (adjacent plate)
-                        //        float alterElevation = Random.value;
-                        //        if (alterElevation > 0.2f)
-                        //        {
-                        //            currentPerimeterTile.SetElevation(currentPerimeterTile.elevation - (currentPerimeterTile.tectonicPressure / 10f));
-                        //        } else {
-                        //            currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure / 10f));
-                        //        }
-                        //    }
-                        //}
-                        //else if (currentTectonicPlate.plateType == TectonicPlate.CONTINENTAL && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
-                        //{
-                        //    if (currentPerimeterTile.tectonicPressure > 0)
-                        //    {
-                        //        // (current plate) CONTINENTAL --> | <-- OCEANIC (adjacent plate)
-                        //        float alterElevation = Random.value;
-                        //        //if (alterElevation > 0.4f)
-                        //        //{
-                        //        //    currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 1.4f));
-                        //        //} else
-                        //        //{
-                        //        //    currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 0.7f));
-                        //        //}
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure * 1.4f));
-                        //    } else {
-                        //        // (current plate) CONTINENTAL <-- | --> OCEANIC (adjacent plate)
-                        //        // non-normalized
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure / 6f));
-                        //        // normalized
-                        //        //currentPerimeterTile.SetElevation(currentPerimeterTile.elevation - (currentPerimeterTile.tectonicPressure / 10f));
-                        //    }
-                        //}
-                        //else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.CONTINENTAL)
-                        //{
-                        //    if (currentPerimeterTile.tectonicPressure > 0)
-                        //    {
-                        //        // (current plate) OCEANIC --> | <-- CONTINENTAL (adjacent plate)
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation - currentPerimeterTile.tectonicPressure);
-                        //    } else {
-                        //        // (current plate) OCEANIC <-- | --> CONTINENTAL (adjacent plate)
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation - (currentPerimeterTile.tectonicPressure / 2.5f));
-                        //    }
-                        //}
-                        //else if (currentTectonicPlate.plateType == TectonicPlate.OCEANIC && adjacentPlateTile.tectonicPlate.plateType == TectonicPlate.OCEANIC)
-                        //{
-                        //    if (currentPerimeterTile.tectonicPressure > 0)
-                        //    {
-                        //        // (current plate) OCEANIC --> | <-- OCEANIC (adjacent plate)
-                        //        float alterElevation = Random.value;
-                        //        if (alterElevation > 0.8f)
-                        //        {
-                        //            currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + currentPerimeterTile.tectonicPressure);
-                        //        }
-                        //    } else {
-                        //        // (current plate) OCEANIC <-- | --> OCEANIC (adjacent plate)
-                        //        currentPerimeterTile.SetElevation(currentPerimeterTile.elevation + (currentPerimeterTile.tectonicPressure / 2.2f));
-                        //    }
-                        //}
                     }
                 }
             }
@@ -668,7 +621,7 @@ public class Globe : MonoBehaviour
                 else
                 {
                     // hyperbolic
-                    //currentPlateTile.SetElevation(Mathf.Lerp(currentPlateTile.elevation, currentPlateTile.GetClosestPerimeterTilesAverageElevation(), 1f / currentPlateTile.tilesAwayFromPlatePerimeter)); // 1 / current
+                    //currentPlateTile.SetElevation(Mathf.Lerp(currentPlateTile.elevation, currentPlateTile.GetClosestPerimeterTilesAverageElevation(), 1f / Mathf.Pow(currentPlateTile.tilesAwayFromPlatePerimeter + 1, 1f))); // 1 / current
 
                     // linear
                     currentPlateTile.elevation = Mathf.Lerp(
@@ -681,15 +634,43 @@ public class Globe : MonoBehaviour
         }
         elevationDetermination.Stop();
         print("Elevation Determination -> " + elevationDetermination.Elapsed);
+        exportData = "";
+        for (int i = 0; i < globeTiles.Count; i++) {
+            exportData += globeTiles[i].elevation + ", ";
+        }
+        print(exportData);
+
+
+
 
         // Determine the sea level and update the terrain type of each tile!
         Stopwatch seaLevelDetermination = Stopwatch.StartNew();
 
         globeTiles.Sort((a, b) => a.elevation.CompareTo(b.elevation));
+        float seaLevel = 0f;
 
         for (int i = 0; i < globeTiles.Count * (oceanicRate / 100f); i++) {
             globeTiles[i].terrainType = GlobeTile.WATER;
             globeTiles[i].terrain.GetComponent<MeshRenderer>().material = Globe.WaterMaterial;
+            if (i == (globeTiles.Count * (oceanicRate / 100f) - 1)) {
+                seaLevel = globeTiles[i + 1].elevation;
+            }
+        }
+        print("Sea Level -->" + seaLevel);
+
+        List<GlobeTile> subductingOceanTiles = globeTiles.FindAll(tile => tile.tectonicTag == TectonicTag.SUBDUCTING_OCEAN).ToList();
+        for (int i = 0; i < subductingOceanTiles.Count; i++) {
+
+            GlobeTile currentOceanTile = subductingOceanTiles[i];
+            List<GlobeTile> currentOceanTileNeighbors = currentOceanTile.neighborTiles;
+            currentOceanTileNeighbors = currentOceanTileNeighbors.FindAll(tile => tile.terrainType == GlobeTile.LAND);
+            float totalLandNeigborElevations = 0f;
+            for (int j = 0; j < currentOceanTileNeighbors.Count; j++) {
+                totalLandNeigborElevations += currentOceanTileNeighbors[j].elevation;
+            }
+            float averageLandNeighborElevation = totalLandNeigborElevations / (float)currentOceanTileNeighbors.Count;
+
+            subductingOceanTiles[i].SetElevation(Mathf.Lerp(averageLandNeighborElevation, seaLevel, 0.5f));
         }
 
         seaLevelDetermination.Stop();
@@ -803,7 +784,6 @@ public class Globe : MonoBehaviour
          * This is the end of the iteration, process starts again from the beginning.
          * 
          */
-        string exportData = "";
         //for (int t = 0; t < moistureIterations; t++)
         //{
         //    // Permeation
@@ -909,13 +889,6 @@ public class Globe : MonoBehaviour
         //    }
         //}
 
-        //for (int i = 0; i < globeTiles.Count; i++)
-        //{
-        //    if (globeTiles[i].terrainType == GlobeTile.LAND)
-        //    {
-        //        exportData += globeTiles[i].surfaceMoisture + ", ";
-        //    }
-        //}
         moistureDistribution.Stop();
         print("Moisture Distribution -> " + moistureDistribution.Elapsed);
 
@@ -998,6 +971,9 @@ public class Globe : MonoBehaviour
                     }  if (currentPlateTile.elevation - minElevationWaterTile <= waterElevationRange * 0.1f) {
                         currentPlateTile.terrain.GetComponent<MeshRenderer>().material = Globe.WaterElevation1Material;
                     }
+                    //if (currentPlateTile.tectonicTag == TectonicTag.SUBDUCTING_OCEAN) {
+                    //    currentPlateTile.terrain.GetComponent<MeshRenderer>().material.color = new Color(0f, 0f, 0f);
+                    //}
                 }
             }
         }

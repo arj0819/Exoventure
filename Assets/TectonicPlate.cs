@@ -8,8 +8,11 @@ public class TectonicPlate
     public static int TotalTectonicPlateCount = 0;
     public const int OCEANIC = 0;
     public const int CONTINENTAL = 1;
-    public const float MIN_DENSITY = 2.7f;
-    public const float MAX_DENSITY = 3.0f;
+    public const float MIN_DENSITY = 2.7f; //2.7f;
+    public const float MAX_DENSITY = 3.0f; //3.0f;
+    public const float AVG_DENSITY = (MAX_DENSITY + MIN_DENSITY) * 0.5f;
+    public const float Q1_DENSITY = (MIN_DENSITY + AVG_DENSITY) * 0.5f;
+    public const float Q3_DENSITY = (MAX_DENSITY + AVG_DENSITY) * 0.5f;
     public const float MANTLE_DENSITY = 5.5f;
     public const float CRUST_RADIUS_THICKNESS_RATIO = 0.02f;
 
@@ -32,11 +35,13 @@ public class TectonicPlate
     private Color plateColor = new Color(Random.value, Random.value, Random.value);
 
     public float defaultElevation; // The starting elevation of this plate. Calculated in the constructor
-    public float density = Random.Range(MIN_DENSITY, MAX_DENSITY); // Real avg density of Earth continental lithosphere is 2.7g/cm^3, oceanic lithosphere is 3g/cm^3
+    public float density; // Real avg density of Earth continental lithosphere is 2.7g/cm^3, oceanic lithosphere is 3g/cm^3
     public static float CrustThickness;
     public static float TectonicActvity;
+    public static float TectonicImpact;
+    public bool isOceanicDensity;
 
-    public TectonicPlate(GlobeTile seed, int smoothness, float tectonicActivity, float globeRadius)
+    public TectonicPlate(GlobeTile seed, int smoothness, float tectonicActivity, float globeRadius, bool isOceanicDensity)
     {
         if (smoothness > 100)
         {
@@ -46,8 +51,17 @@ public class TectonicPlate
         {
             smoothness = 0;
         }
+
+        this.isOceanicDensity = isOceanicDensity;
+        if (!this.isOceanicDensity) {
+            this.density = Utilities.NextRandomNormal(Q1_DENSITY, (Q1_DENSITY - MIN_DENSITY) / 15f);
+        } else {
+            this.density = Utilities.NextRandomNormal(Q3_DENSITY, (MAX_DENSITY - Q3_DENSITY) / 15f);
+        }
+
         TectonicPlate.CrustThickness = CRUST_RADIUS_THICKNESS_RATIO * globeRadius;
         TectonicPlate.TectonicActvity = tectonicActivity;
+        TectonicPlate.TectonicImpact = TectonicPlate.TectonicActvity * 0.02f;
         this.defaultElevation = globeRadius - ((this.density / MANTLE_DENSITY) * TectonicPlate.CrustThickness);
 
         TotalTectonicPlateCount++;
@@ -141,7 +155,7 @@ public class TectonicPlate
             }
             this.perimeterEdges = allPerimeterTileEdges.Intersect(allPerimeterTileNeighborEdges).ToList();
 
-            // Determine the closest distance to a perimiter tile for each tile in this tectonic plate
+            // Determine the closest distance to a perimeter tile for each tile in this tectonic plate
             for (int i = 0; i < this.plateTiles.Count; i++)
             {
                 Queue<GlobeTile> queuedTiles = new Queue<GlobeTile>();
@@ -180,6 +194,7 @@ public class TectonicPlate
                     depth++;
                 }
                 this.plateTiles[i].tilesAwayFromPlatePerimeter = depth;
+                //this.plateTiles[i].elevation += depth * (TectonicPlate.CrustThickness * 0.125f);
                 if (depth > this.maxDistanceFromPerimeter)
                 {
                     this.maxDistanceFromPerimeter = depth;

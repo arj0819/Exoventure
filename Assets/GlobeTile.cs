@@ -37,6 +37,7 @@ public class GlobeTile
     public float tectonicPressure = float.MinValue;
     public float tectonicSheer = float.MinValue;
     public Vector3 motion;
+    public int tectonicTag = -1;
     public float elevation;
     public float surfaceMoisture;
     public float groundMoisture;
@@ -44,6 +45,7 @@ public class GlobeTile
     public float surfaceAirPressure;
     public MoistureManager moistureManager;
     public static float TotalPercipitation;
+
 
     public float shuffleValue = Random.value;
 
